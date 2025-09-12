@@ -1,4 +1,3 @@
-{# tracker/templates/dashboard.html #}
 {% load static %}
 <!doctype html>
 <html>
@@ -11,6 +10,7 @@
     body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; padding: 24px; color:#0f172a; }
     .grid { display: grid; gap: 16px; }
     .grid-4 { grid-template-columns: repeat(4,minmax(0,1fr)); }
+    .grid-3 { grid-template-columns: repeat(3,minmax(0,1fr)); }
     .grid-2 { grid-template-columns: repeat(2,minmax(0,1fr)); }
     .card { background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; box-shadow:0 1px 2px rgba(0,0,0,.04); }
     .kpi { font-size: 14px; color:#475569; }
@@ -26,6 +26,8 @@
     button { padding: 8px 12px; border-radius:8px; border: 1px solid #0ea5e9; background:#0ea5e9; color:white; cursor:pointer; }
     button:disabled { opacity:.7; cursor:default; }
     .section { margin-top: 24px; }
+    .nowrap { white-space: nowrap; }
+    .ellipsis { max-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   </style>
 </head>
 <body>
@@ -56,8 +58,9 @@
     <div class="card kpi"><div>Form Submissions</div><div class="val">{{ form_submits }}</div></div>
     <div class="card kpi"><div>Unique Visitors</div><div class="val">{{ unique_visitors }}</div></div>
     <div class="card kpi"><div>Identified Users</div><div class="val">{{ identified_users }}</div></div>
-    <div class="card kpi"><div>New Registrations</div><div class="val">{{ new_registrations }}</div></div>
-    <div class="card kpi"><div>Logins</div><div class="val">{{ logins }}</div></div>
+    <div class="card kpi"><div>Events with Identity</div><div class="val">{{ events_with_identity }}</div></div>
+    <div class="card kpi"><div>Identity Coverage</div><div class="val">{{ identity_coverage_pct }}%</div></div>
+    <div class="card kpi"><div>Logins / Registrations</div><div class="val">{{ logins }} / {{ new_registrations }}</div></div>
   </div>
 
   <div class="grid grid-2 section">
@@ -73,22 +76,65 @@
     </div>
   </div>
 
+  <!-- Page & Navigation -->
   <div class="grid grid-2 section">
     <div class="card">
       <h2>Top Pages</h2>
       <table>
-        <thead><tr><th>URL</th><th>Events</th></tr></thead>
+        <thead><tr><th>URL</th><th class="nowrap">Events</th></tr></thead>
         <tbody>
           {% for row in top_pages %}
             <tr>
-              <td style="max-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-                <a href="{{ row.page_url }}" target="_blank" rel="noopener">{{ row.page_url }}</a>
-              </td>
-              <td>{{ row.events }}</td>
+              <td class="ellipsis"><a href="{{ row.page_url }}" target="_blank" rel="noopener">{{ row.page_url }}</a></td>
+              <td class="nowrap">{{ row.events }}</td>
             </tr>
           {% empty %}
             <tr><td colspan="2" class="muted">No data</td></tr>
           {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Top Referrers</h2>
+      <table>
+        <thead><tr><th>Referrer</th><th class="nowrap">Events</th></tr></thead>
+        <tbody>
+          {% for row in top_referrers %}
+            <tr>
+              <td class="ellipsis">{{ row.ref }}</td>
+              <td class="nowrap">{{ row.events }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="2" class="muted">No data</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Marketing -->
+  <div class="grid grid-3 section">
+    <div class="card">
+      <h2>Top Sources</h2>
+      <table>
+        <thead><tr><th>Source</th><th>Events</th></tr></thead>
+        <tbody>
+          {% for row in top_sources %}
+            <tr><td>{{ row.source|default:"—" }}</td><td>{{ row.events }}</td></tr>
+          {% empty %}<tr><td colspan="2" class="muted">No data</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Top Mediums</h2>
+      <table>
+        <thead><tr><th>Medium</th><th>Events</th></tr></thead>
+        <tbody>
+          {% for row in top_mediums %}
+            <tr><td>{{ row.medium|default:"—" }}</td><td>{{ row.events }}</td></tr>
+          {% empty %}<tr><td colspan="2" class="muted">No data</td></tr>{% endfor %}
         </tbody>
       </table>
     </div>
@@ -112,85 +158,86 @@
     </div>
   </div>
 
-  <!-- NEW: Top Referrers & Languages -->
-  <div class="grid grid-2 section">
-    <div class="card">
-      <h2>Top Referrers</h2>
-      <table>
-        <thead><tr><th>Referrer</th><th>Events</th></tr></thead>
-        <tbody>
-          {% for r in top_referrers %}
-            <tr>
-              <td style="max-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-                <a href="{{ r.ref }}" target="_blank" rel="noopener">{{ r.ref }}</a>
-              </td>
-              <td>{{ r.events }}</td>
-            </tr>
-          {% empty %}
-            <tr><td colspan="2" class="muted">No data</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-
-    <div class="card">
-      <h2>Languages</h2>
-      <table>
-        <thead><tr><th>Language</th><th>Events</th></tr></thead>
-        <tbody>
-          {% for l in lang_breakdown %}
-            <tr>
-              <td>{{ l.lang }}</td>
-              <td>{{ l.events }}</td>
-            </tr>
-          {% empty %}
-            <tr><td colspan="2" class="muted">No data</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+  <!-- Recent Searches (table only) -->
+  <div class="section card">
+    <h2>Recent Searches</h2>
+    <table>
+      <thead><tr><th>When</th><th>Field</th><th>Value</th><th>Page</th></tr></thead>
+      <tbody>
+        {% for r in recent_searches %}
+          <tr>
+            <td class="nowrap">{{ r.created_at }}</td>
+            <td>{{ r.event_data__field__label|default:r.event_data__field__name }} ({{ r.event_data__field__type }})</td>
+            <td>
+              {% if r.event_data__field__masked %}
+                [masked]
+              {% else %}
+                {{ r.event_data__field__value|default:"—" }}
+              {% endif %}
+            </td>
+            <td class="ellipsis"><a href="{{ r.event_data__meta_url }}" target="_blank" rel="noopener">{{ r.event_data__meta_url }}</a></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="muted">No recent searches</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 
-  <!-- NEW: Device Mix & Top Searches -->
-  <div class="grid grid-2 section">
-    <div class="card">
-      <h2>Device Mix (by viewport)</h2>
-      <table>
-        <thead><tr><th>Bucket</th><th>Events</th></tr></thead>
-        <tbody>
-          {% for d in device_mix %}
-            <tr>
-              <td>{{ d.bucket }}</td>
-              <td>{{ d.events }}</td>
-            </tr>
-          {% empty %}
-            <tr><td colspan="2" class="muted">No data</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      <div class="muted">Mobile: &lt;640px, Tablet: 640–1023px, Desktop: ≥1024px</div>
-    </div>
-
-    <div class="card">
-      <h2>Top Searches</h2>
-      <table>
-        <thead><tr><th>Field</th><th>Query</th><th>Times</th></tr></thead>
-        <tbody>
-          {% for s in top_searches %}
-            <tr>
-              <td>{{ s.event_data__field__label|default:"Search" }}</td>
-              <td style="max-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-                {{ s.event_data__field__value }}
-              </td>
-              <td>{{ s.times }}</td>
-            </tr>
-          {% empty %}
-            <tr><td colspan="3" class="muted">No searches captured</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      <div class="muted">Only explicit <code>search</code> events; sensitive fields are excluded.</div>
-    </div>
+  <!-- Recent events (denormalized essentials) -->
+  <div class="section card">
+    <h2>Recent Events (last 10)</h2>
+    <table>
+      <thead>
+        <tr>
+          <th class="nowrap">When</th>
+          <th>Type</th>
+          <th>Event</th>
+          <th>Page</th>
+          <th>Title</th>
+          <th>Referrer</th>
+          <th>UTM</th>
+          <th>Lang/TZ</th>
+          <th>Viewport</th>
+          <th>Screen</th>
+          <th>Input</th>
+          <th>Identity</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in recent_events %}
+          <tr>
+            <td class="nowrap">{{ e.created_at }}</td>
+            <td>{{ e.event_type }}</td>
+            <td>{{ e.evname|default:"—" }}</td>
+            <td class="ellipsis"><a href="{{ e.page_url }}" target="_blank" rel="noopener">{{ e.page_url }}</a></td>
+            <td class="ellipsis">{{ e.page_title_an|default:"—" }}</td>
+            <td class="ellipsis">{{ e.ref|default:"—" }}</td>
+            <td class="ellipsis">
+              {% with s=e.utm_source_an m=e.utm_medium_an c=e.utm_campaign_an t=e.utm_term_an u=e.utm_content_an %}
+                {{ s|default:"—" }}/{{ m|default:"—" }}/{{ c|default:"—" }}{% if t or u %} ({{ t|default:"—" }}, {{ u|default:"—" }}){% endif %}
+              {% endwith %}
+            </td>
+            <td>{{ e.lang|default:"—" }}/{{ e.tz|default:"—" }}</td>
+            <td>{{ e.vw|default:"—" }}×{{ e.vh|default:"—" }}</td>
+            <td>{{ e.sw|default:"—" }}×{{ e.sh|default:"—" }} @{{ e.dpr|default:"—" }}</td>
+            <td>
+              {% if e.fld_label or e.fld_value %}
+                {{ e.fld_label|default:"(field)" }}:
+                {% if e.fld_masked %}[masked]{% else %}{{ e.fld_value|default:"—" }}{% endif %}
+              {% else %}—{% endif %}
+            </td>
+            <td>
+              {% if e.id_user_email or e.id_user_id or e.id_user_name %}
+                {{ e.id_user_name|default:"" }} {{ e.id_user_email|default:"" }} {{ e.id_user_id|default:"" }}
+              {% else %}—{% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="12" class="muted">No events yet</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 
   <div class="section card">
@@ -251,20 +298,12 @@
       type: 'line',
       data: {
         labels,
-        datasets: [{
-          label: 'Events',
-          data,
-          tension: 0.3,
-          fill: false,
-        }]
+        datasets: [{ label: 'Events', data, tension: 0.3, fill: false }]
       },
       options: {
         responsive: true,
         plugins: { legend: { display: false } },
-        scales: {
-          x: { ticks: { maxRotation: 0, autoSkip: true } },
-          y: { beginAtZero: true }
-        }
+        scales: { y: { beginAtZero: true } }
       }
     });
   </script>
