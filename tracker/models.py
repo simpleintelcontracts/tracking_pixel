@@ -23,8 +23,8 @@ class Session(models.Model):
     device_info  = models.TextField(blank=True, null=True)
     ip_address   = models.GenericIPAddressField(blank=True, null=True)
     location_data = models.TextField(blank=True, null=True)  # GeoIP data JSON
-    first_seen   = models.DateTimeField(auto_now_add=True)
-    last_seen    = models.DateTimeField(auto_now=True)
+    created_at   = models.DateTimeField(auto_now_add=True)
+    updated_at   = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.session_id
