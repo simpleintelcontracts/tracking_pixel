@@ -11,6 +11,7 @@ from .tasks import process_event_data
 from django.http import HttpResponse
 import uuid
 import time
+import json
 
 from django.shortcuts import render
 from django.db.models import Count
@@ -36,29 +37,42 @@ def generate_simple_client_id():
 @method_decorator(csrf_exempt, name="dispatch")
 class CollectView(APIView):
     permission_classes = [AllowAny]
-    throttle_classes = [TrackerRateThrottle]
 
     def post(self, request, *args, **kwargs):
-        # Accept either a single object or an array of events (batch from sendBeacon)
+        # Support both JSON body and form-encoded "p=<json>"
         data = request.data
+
+        # If DRF already parsed form data, p will be present in request.data
+        if isinstance(data, dict) and "p" in data and isinstance(data["p"], str):
+            try:
+                data = json.loads(data["p"])
+            except Exception:
+                return Response({"error": "Invalid JSON in 'p'."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Fallback for plain Django POST
+        if not data and "p" in request.POST:
+            try:
+                data = json.loads(request.POST["p"])
+            except Exception:
+                return Response({"error": "Invalid JSON in 'p'."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Accept single event or array of events
         events = data if isinstance(data, list) else [data]
 
-        created_any = False
-        ids = []
+        created_pks = []
         for payload in events:
             ser = EventSerializer(data=payload, context={"request": request})
             if ser.is_valid():
                 event = ser.save()
-                created_any = True
-                ids.append(event.pk)
-            # If invalid, skip silently to keep beacon flow non-blocking
+                created_pks.append(event.pk)
+            else:
+                # helpful when debugging
+                return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        # Kick off async post-processing (batch)
-        for pk in ids:
-            process_event_data.delay(pk)
+        for pk in created_pks:
+            process_event_data(pk)
 
-        # 204 for beacons (no content)
-        return Response(status=status.HTTP_204_NO_CONTENT if created_any else status.HTTP_400_BAD_REQUEST)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 def collect_gif_view(request):
     # 1x1 transparent GIF

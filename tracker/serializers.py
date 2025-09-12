@@ -7,13 +7,12 @@ import uuid as _uuid
 
 class EventSerializer(serializers.Serializer):
     # Basic
-    v = serializers.IntegerField(source="schema_version")
+    v = serializers.IntegerField(source='schema_version')
     site_key = serializers.CharField(max_length=255)
-    event_id = serializers.UUIDField()  # expect uuid string
+    event_id = serializers.UUIDField()  # <-- remove format='hex'
     client_id = serializers.CharField(max_length=255, required=False, allow_blank=True)
     session_id = serializers.CharField(max_length=255)
     event_type = serializers.ChoiceField(choices=Event.EVENT_TYPE_CHOICES)
-
     # Page/meta
     url = serializers.URLField(max_length=2048, required=False, allow_blank=True)
     page_title = serializers.CharField(max_length=512, required=False, allow_blank=True)
