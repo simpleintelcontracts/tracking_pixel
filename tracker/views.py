@@ -45,13 +45,6 @@ class CollectView(APIView):
             except Exception:
                 return Response({"error": "Invalid JSON in 'p'."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Fallback for plain Django POST
-        if not data and "p" in request.POST:
-            try:
-                data = json.loads(request.POST["p"])
-            except Exception:
-                return Response({"error": "Invalid JSON in 'p'."}, status=status.HTTP_400_BAD_REQUEST)
-
         # Accept single event or array of events
         events = data if isinstance(data, list) else [data]
 

@@ -16,15 +16,15 @@ class SessionSerializer(serializers.ModelSerializer):
 
 
 class EventSerializer(serializers.ModelSerializer):
-    # Re-add session-related fields for validation
+    # These fields are now nested within event_data in the JS payload, so remove them as direct serializer fields.
+    # client_id and session_id remain as they are always top-level identifiers for session.
     client_id = serializers.CharField(max_length=255, allow_null=True, required=False, write_only=True)
     session_id = serializers.CharField(max_length=255, write_only=True)
-    user_id = serializers.CharField(max_length=255, allow_null=True, required=False, write_only=True)
-    user_email = serializers.EmailField(allow_null=True, required=False, write_only=True)
-    user_name = serializers.CharField(max_length=255, allow_null=True, required=False, write_only=True)
+    # Removed: user_id, user_email, user_name, as they are now extracted from event_data.
 
     # Basic
-    v = serializers.IntegerField(source='schema_version')
+    # Explicitly define 'v' with source mapping and make it required.
+    v = serializers.IntegerField(source='schema_version', required=True)
     site_key = serializers.CharField(max_length=255)
     event_id = serializers.UUIDField()  # <-- remove format='hex'
     event_type = serializers.ChoiceField(choices=Event.EVENT_TYPE_CHOICES)
@@ -33,42 +33,20 @@ class EventSerializer(serializers.ModelSerializer):
         model = Event
         fields = (
             "v", "site_key", "event_id", "event_type",
-            "url", "page_title", "referrer", "language", "tz_offset_min",
-            "viewport", "screen", "utm_source", "utm_medium", "utm_campaign",
-            "utm_term", "utm_content", "device_info", "location_data", "client_ts",
-            "event_data",
-            # Fields that are not directly on Event model but are handled in create()
-            "client_id", "session_id", "user_id", "user_email", "user_name",
+            "event_data", # event_data is now the primary holder of dynamic/meta fields
+            # Keep client_id and session_id explicitly as they are critical for session linking.
+            "client_id", "session_id",
+            # Removed: user_id, user_email, user_name, url, page_title, referrer, language, tz_offset_min,
+            # viewport, screen, utm_source, utm_medium, utm_campaign, utm_term, utm_content,
+            # device_info, location_data, client_ts as they are now nested in event_data or directly handled.
             "first_name", "last_name", "email", "phone", "property_address",
         )
 
-    # Page/meta
-    url = serializers.URLField(max_length=2048, required=False, allow_blank=True)
-    page_title = serializers.CharField(max_length=512, required=False, allow_blank=True)
-    referrer = serializers.URLField(max_length=2048, required=False, allow_blank=True)
-    language = serializers.CharField(max_length=32, required=False, allow_blank=True)
-    tz_offset_min = serializers.IntegerField(required=False)
-    viewport = serializers.JSONField(required=False)
-    screen = serializers.JSONField(required=False)
+    # The following fields are now expected to be INSIDE event_data, so remove their direct serializer definitions.
+    # We'll access them from event_data in the create method.
+    # Removed: url, page_title, referrer, language, tz_offset_min, viewport, screen, utm_source, utm_medium, utm_campaign, utm_term, utm_content, device_info, location_data, client_ts
 
-    # UTMs
-    utm_source = serializers.CharField(max_length=255, required=False, allow_blank=True)
-    utm_medium = serializers.CharField(max_length=255, required=False, allow_blank=True)
-    utm_campaign = serializers.CharField(max_length=255, required=False, allow_blank=True)
-    utm_term = serializers.CharField(max_length=255, required=False, allow_blank=True)
-    utm_content = serializers.CharField(max_length=255, required=False, allow_blank=True)
-
-    # Device info
-    device_info = serializers.CharField(required=False, allow_blank=True)
-    location_data = serializers.CharField(required=False, allow_blank=True)
-
-    # Client clock
-    client_ts = serializers.DateTimeField(required=False)
-
-    # Payload
-    event_data = serializers.JSONField(required=False, allow_null=True)
-
-    # Optional Lead hints
+    # Optional Lead hints - these remain direct fields if they are for specific forms.
     first_name = serializers.CharField(max_length=255, required=False, allow_blank=True)
     last_name = serializers.CharField(max_length=255, required=False, allow_blank=True)
     email = serializers.EmailField(required=False, allow_blank=True)
@@ -80,26 +58,62 @@ class EventSerializer(serializers.ModelSerializer):
             return value
         if not isinstance(value, dict):
             raise serializers.ValidationError("event_data must be an object.")
-        # Basic safety: only primitives
-        for k, v in value.items():
-            if not isinstance(k, str):
-                raise serializers.ValidationError("event_data keys must be strings.")
-            if not isinstance(v, (str, int, float, bool, type(None))):
-                raise serializers.ValidationError(f"event_data['{k}'] must be primitive.")
+        # Removed strict primitive check for values within event_data
+        # This allows nested JSON objects for custom events like 'input_change'.
+        # for k, v in value.items():
+        #     if not isinstance(k, str):
+        #         raise serializers.ValidationError("event_data keys must be strings.")
+        #     if not isinstance(v, (str, int, float, bool, type(None))):
+        #         raise serializers.ValidationError(f"event_data['{k}'] must be primitive.")
         return value
 
     def create(self, validated_data):
-        # Pop all fields that belong to Session or Lead before creating Event
-        # These are now direct fields on EventSerializer, so pop directly by their names.
+        # Pop top-level fields for Event model
+        site_key = validated_data.pop("site_key")
+        # Access schema_version directly as 'v' is mapped via source.
+        schema_version = validated_data.pop("schema_version") 
+        event_id = validated_data.pop("event_id")
+        event_type = validated_data.pop("event_type")
+
+        # Extract fields for Session or Lead from validated_data and event_data
         client_id = validated_data.pop("client_id", None)
         session_id = validated_data.pop("session_id")
-        user_external_id = validated_data.pop("user_id", None)
-        user_email = validated_data.pop("user_email", None)
-        user_name = validated_data.pop("user_name", None)
 
-        site_key = validated_data.pop("site_key") # Event also uses site_key, so pop here for session
-        device_info = validated_data.pop("device_info", "")
+        event_data = validated_data.pop("event_data", {}) or {}
+
+        # Extract identity fields from event_data (they should always be here now)
+        user_external_id = event_data.pop("identity_user_id", None)
+        user_email = event_data.pop("identity_user_email", None)
+        user_name = event_data.pop("identity_user_name", None)
+
+        # Extract meta fields: prioritize top-level (validated_data) then fallback to event_data (meta_ prefix)
+        url = validated_data.pop("url", None) or event_data.pop("meta_url", None)
+        page_title = validated_data.pop("page_title", None) or event_data.pop("meta_page_title", None)
+        referrer = validated_data.pop("referrer", None) or event_data.pop("meta_referrer", None)
+        language = validated_data.pop("language", None) or event_data.pop("meta_language", None)
+        tz_offset_min = validated_data.pop("tz_offset_min", None) or event_data.pop("meta_tz_offset_min", None)
+
+        viewport_w = validated_data.pop("viewport", {}).get("w") or event_data.pop("meta_vw", None)
+        viewport_h = validated_data.pop("viewport", {}).get("h") or event_data.pop("meta_vh", None)
+        viewport = {"w": viewport_w, "h": viewport_h} if viewport_w is not None or viewport_h is not None else None
+
+        screen_w = validated_data.pop("screen", {}).get("w") or event_data.pop("meta_sw", None)
+        screen_h = validated_data.pop("screen", {}).get("h") or event_data.pop("meta_sh", None)
+        screen_dpr = validated_data.pop("screen", {}).get("dpr") or event_data.pop("meta_dpr", None)
+        screen = {"w": screen_w, "h": screen_h, "dpr": screen_dpr} if screen_w is not None or screen_h is not None else None
+
+        client_ts_str = validated_data.pop("client_ts", None) or event_data.pop("meta_client_ts", None)
+        client_ts = datetime.fromisoformat(client_ts_str.replace("Z", "+00:00")) if client_ts_str else None
+
+        device_info = validated_data.pop("device_info", None)
         location_data = validated_data.pop("location_data", None)
+
+        # UTMs (still at top level in tracker.js buildCore, but keep robust parsing from event_data too)
+        utm_source = validated_data.pop("utm_source", None) or event_data.pop("utm_source", None)
+        utm_medium = validated_data.pop("utm_medium", None) or event_data.pop("utm_medium", None)
+        utm_campaign = validated_data.pop("utm_campaign", None) or event_data.pop("utm_campaign", None)
+        utm_term = validated_data.pop("utm_term", None) or event_data.pop("utm_term", None)
+        utm_content = validated_data.pop("utm_content", None) or event_data.pop("utm_content", None)
 
         lead_data = {
             "first_name": validated_data.pop("first_name", None),
@@ -116,13 +130,12 @@ class EventSerializer(serializers.ModelSerializer):
             ip = (xff.split(",")[0].strip() if xff else request.META.get("REMOTE_ADDR"))
             ua = request.META.get("HTTP_USER_AGENT")
 
-        # Create or get Session
         session, created = Session.objects.get_or_create(
             session_id=session_id,
             defaults={
                 "client_id": client_id,
                 "site_key": site_key,
-                "user_agent": ua,
+                "user_agent": ua or device_info, # Fallback to device_info if ua is None
                 "device_info": device_info,
                 "ip_address": ip,
                 "location_data": location_data,
@@ -131,11 +144,11 @@ class EventSerializer(serializers.ModelSerializer):
                 "user_name": user_name,
             },
         )
-
         # Update session identity if newly provided
         changed = False
         if client_id and not session.client_id: session.client_id = client_id; changed = True
         if site_key and not session.site_key: session.site_key = site_key; changed = True
+        # Update user_agent if new data is available and existing is empty
         if ua and not session.user_agent: session.user_agent = ua; changed = True
         if ip and not session.ip_address: session.ip_address = ip; changed = True
         if user_external_id and not session.user_external_id:
@@ -146,7 +159,6 @@ class EventSerializer(serializers.ModelSerializer):
             session.user_name = user_name; changed = True
         if changed: session.save()
 
-        # Lead upsert logic
         lead = None
         cleaned_lead_data = {k: v for k, v in lead_data.items() if v}
 
@@ -167,11 +179,25 @@ class EventSerializer(serializers.ModelSerializer):
                     lead = Lead.objects.create(**cleaned_lead_data)
 
         event = Event.objects.create(
-            event_id=validated_data.pop("event_id"),
-            schema_version=validated_data.pop("schema_version"),
+            event_id=event_id,
+            schema_version=schema_version,
             site_key=site_key,
             session=session,
             lead=lead,
-            **validated_data
+            url=url,
+            page_title=page_title,
+            referrer=referrer,
+            language=language,
+            tz_offset_min=tz_offset_min,
+            viewport=viewport,
+            screen=screen,
+            utm_source=utm_source,
+            utm_medium=utm_medium,
+            utm_campaign=utm_campaign,
+            utm_term=utm_term,
+            utm_content=utm_content,
+            client_ts=client_ts,
+            event_data=event_data, # remaining event_data
+            **validated_data # This will be empty now
         )
         return event
