@@ -3,159 +3,134 @@ from django.db.models.functions import TruncDate
 from django.shortcuts import render
 from django.utils import timezone
 from django.http import HttpResponse
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, date
 import csv
 import json
 
 from .models import Event, Lead, Session
+from django.db import models
 
 
 def dashboard(request):
-    # --- Filters ---
-    site_key = request.GET.get("site_key")
-    date_from = request.GET.get("from")
-    date_to = request.GET.get("to")
+    today = date.today()
+    two_weeks_ago = today - timedelta(days=14)
 
-    now = timezone.now()
-    default_from = (now - timedelta(days=14)).date()
-    default_to = now.date()
+    site_keys = Event.objects.values_list('site_key', flat=True).distinct()
+    active_site_key = request.GET.get('site_key', '')
 
-    def _parse(d, default):
-        if not d:
-            return default
-        try:
-            # expects YYYY-MM-DD
-            return datetime.fromisoformat(d).date()
-        except Exception:
-            return default
+    # Filtering base querysets
+    events_base_qs = Event.objects.all()
+    leads_base_qs = Lead.objects.all()
+    sessions_base_qs = Session.objects.all()
 
-    start_date = _parse(date_from, default_from)
-    end_date = _parse(date_to, default_to)
+    if active_site_key:
+        events_base_qs = events_base_qs.filter(site_key=active_site_key)
+        leads_base_qs = leads_base_qs.filter(event__site_key=active_site_key) # Leads linked via events
+        sessions_base_qs = sessions_base_qs.filter(site_key=active_site_key)
 
-    # Base querysets (inclusive range)
-    event_qs = Event.objects.filter(
-        created_at__date__gte=start_date,
-        created_at__date__lte=end_date
-    )
-    lead_qs = Lead.objects.filter(
-        created_at__date__gte=start_date,
-        created_at__date__lte=end_date
-    )
-    session_qs = Session.objects.filter(
-        first_seen__date__gte=start_date,
-        first_seen__date__lte=end_date
-    )
+    # Apply date range filter to all base querysets
+    from_date_str = request.GET.get('from', two_weeks_ago.isoformat())
+    to_date_str = request.GET.get('to', today.isoformat())
 
-    if site_key:
-        event_qs = event_qs.filter(site_key=site_key)
-        session_qs = session_qs.filter(site_key=site_key)
+    from_date = date.fromisoformat(from_date_str)
+    to_date = date.fromisoformat(to_date_str)
 
-    # -------- CSV Export (all filtered events) --------
-    if request.GET.get("export") == "csv":
-        filename = f"events_{start_date}_{end_date}"
-        if site_key:
-            filename += f"_{site_key}"
-        resp = HttpResponse(content_type="text/csv")
-        resp["Content-Disposition"] = f'attachment; filename="{filename}.csv"'
-        w = csv.writer(resp)
-        w.writerow([
-            "created_at", "event_type", "site_key",
-            "session_id", "client_id",
-            "url", "referrer",
-            "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
-            "lead_email", "lead_phone"
-        ])
-        for e in event_qs.select_related("session", "lead").order_by("created_at").iterator():
-            sess = getattr(e, "session", None)
-            lead = getattr(e, "lead", None)
-            w.writerow([
-                e.created_at.isoformat(),
-                e.event_type,
-                e.site_key or "",
-                getattr(sess, "session_id", "") or "",
-                getattr(sess, "client_id", "") or "",
-                e.url or "",
-                e.referrer or "",
-                e.utm_source or "",
-                e.utm_medium or "",
-                e.utm_campaign or "",
-                e.utm_term or "",
-                e.utm_content or "",
-                getattr(lead, "email", "") or "",
-                getattr(lead, "phone", "") or "",
+    events_qs = events_base_qs.filter(created_at__date__range=[from_date, to_date])
+    leads_qs = leads_base_qs.filter(created_at__date__range=[from_date, to_date])
+    sessions_qs = sessions_base_qs.filter(first_seen__date__range=[from_date, to_date])
+
+    # Debugging print statement
+    print(f"Dashboard: Active Site Key: {active_site_key}, Events count: {events_qs.count()}, Sessions count: {sessions_qs.count()}")
+
+    # Handle CSV export
+    if request.GET.get('export') == 'csv':
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="events_export.csv"'
+
+        writer = csv.writer(response)
+        writer.writerow(['Event ID', 'Event Type', 'Site Key', 'Session ID', 'Client ID', 'URL', 'Page Title', 'Referrer', 'UTM Source', 'UTM Campaign', 'Created At'])
+
+        for event in events_qs.select_related('session'):
+            writer.writerow([
+                str(event.event_id),
+                event.event_type,
+                event.site_key,
+                event.session.session_id if event.session else '',
+                event.session.client_id if event.session else '',
+                event.url or '',
+                event.page_title or '',
+                event.referrer or '',
+                event.utm_source or '',
+                event.utm_campaign or '',
+                event.created_at.isoformat(),
             ])
-        return resp
-    # --------------------------------------------------
+        return response
 
     # KPIs
-    total_events = event_qs.count()
-    page_loads = event_qs.filter(event_type="page_load").count()
-    form_submits = event_qs.filter(event_type="form_submission").count()
-    unique_visitors = (
-        session_qs.values("client_id")
-        .exclude(client_id__isnull=True)
-        .exclude(client_id="")
-        .distinct()
-        .count()
-    )
-    new_leads = lead_qs.count()
+    total_events = events_qs.count()
+    page_loads = events_qs.filter(event_type=Event.EVENT_PAGE_LOAD).count()
+    form_submits = events_qs.filter(event_type=Event.EVENT_FORM_SUBMIT).count()
+    unique_visitors = sessions_qs.values('client_id').distinct().count()
 
-    # Time series
-    daily = (
-        event_qs.annotate(day=TruncDate("created_at"))
-        .values("day")
-        .annotate(count=Count("id"))
-        .order_by("day")
-    )
-    days = [d["day"].isoformat() for d in daily]
-    counts = [d["count"] for d in daily]
+    # Events over time (Chart.js data)
+    daily_events = events_qs.filter(created_at__date__gte=from_date, created_at__date__lte=to_date)
+    daily_events = daily_events.values('created_at__date').annotate(count=Count('id')).order_by('created_at__date')
 
-    # Top pages
-    top_pages = (
-        event_qs.exclude(url__isnull=True)
-        .values("url")
-        .annotate(events=Count("id"))
-        .order_by("-events")[:10]
-    )
+    days = []
+    counts = []
+    current_day = from_date
+    while current_day <= to_date:
+        days.append(current_day.isoformat())
+        count_for_day = next((item['count'] for item in daily_events if item['created_at__date'] == current_day), 0)
+        counts.append(count_for_day)
+        current_day += timedelta(days=1)
 
-    # Top campaigns
-    top_campaigns = (
-        event_qs.values("utm_source", "utm_campaign")
-        .annotate(events=Count("id"))
-        .order_by("-events")[:10]
-    )
+    # Top Pages
+    top_pages = events_qs.filter(url__isnull=False).values('url').annotate(events=Count('id')).order_by('-events')[:10]
 
-    # Recent leads
-    recent_leads = (
-        lead_qs.order_by("-created_at")[:10]
-        .values("first_name", "last_name", "email", "phone", "property_address", "created_at")
-    )
+    # Top Campaigns
+    top_campaigns = events_qs.filter(utm_source__isnull=False).values('utm_source', 'utm_campaign').annotate(events=Count('id')).order_by('-events')[:10]
 
-    site_keys = (
-        Event.objects.exclude(site_key__isnull=True)
-        .values_list("site_key", flat=True)
-        .distinct()
-        .order_by("site_key")
-    )
+    # Recent Leads
+    recent_leads = leads_qs.order_by('-created_at')[:10]
 
-    ctx = {
-        "site_keys": site_keys,
-        "active_site_key": site_key or "",
-        "from": start_date.isoformat(),
-        "to": end_date.isoformat(),
+    # New KPIs
+    identified_users = sessions_qs.filter(
+        (models.Q(user_external_id__isnull=False) | models.Q(user_email__isnull=False)),
+    ).distinct().count()
+    # Assuming custom events for registration and login
+    new_registrations = events_qs.filter(
+        event_type=Event.EVENT_CUSTOM,
+        event_data__event_name="user_registered"
+    ).count()
+    logins = events_qs.filter(
+        event_type=Event.EVENT_CUSTOM,
+        event_data__event_name="user_logged_in"
+    ).count()
 
-        "total_events": total_events,
-        "page_loads": page_loads,
-        "form_submits": form_submits,
-        "unique_visitors": unique_visitors,
-        "new_leads": new_leads,
+    # Recent Users Table
+    recent_users = sessions_qs.filter(
+        (models.Q(user_external_id__isnull=False) | models.Q(user_email__isnull=False)),
+    ).order_by('-first_seen')[:10]
 
-        # For Chart.js (valid JSON)
-        "days_json": json.dumps(days),
-        "counts_json": json.dumps(counts),
-
-        "top_pages": top_pages,
-        "top_campaigns": top_campaigns,
-        "recent_leads": recent_leads,
+    context = {
+        'site_keys': site_keys,
+        'active_site_key': active_site_key,
+        'from': from_date_str,
+        'to': to_date_str,
+        'total_events': total_events,
+        'page_loads': page_loads,
+        'form_submits': form_submits,
+        'unique_visitors': unique_visitors,
+        'days': days,
+        'counts': counts,
+        'top_pages': top_pages,
+        'top_campaigns': top_campaigns,
+        'new_leads': leads_qs.count(),
+        'recent_leads': recent_leads,
+        'identified_users': identified_users,
+        'new_registrations': new_registrations,
+        'logins': logins,
+        'recent_users': recent_users,
     }
-    return render(request, "tracker/dashboard.html", ctx)
+    return render(request, 'dashboard.html', context)

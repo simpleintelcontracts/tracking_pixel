@@ -1,9 +1,10 @@
 # tracker/urls.py
 from django.urls import path
 from . import views
+from . import views_dashboard
 
 urlpatterns = [
     path('collect/', views.CollectView.as_view(), name='collect'),
     path('collect.gif', views.collect_gif_view, name='collect_gif'),
-    path('dashboard/', views.dashboard_view, name='dashboard'),
+    path('dashboard/', views_dashboard.dashboard, name='dashboard'),
 ]

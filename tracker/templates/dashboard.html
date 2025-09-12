@@ -55,6 +55,9 @@
     <div class="card kpi"><div>Page Loads</div><div class="val">{{ page_loads }}</div></div>
     <div class="card kpi"><div>Form Submissions</div><div class="val">{{ form_submits }}</div></div>
     <div class="card kpi"><div>Unique Visitors</div><div class="val">{{ unique_visitors }}</div></div>
+    <div class="card kpi"><div>Identified Users</div><div class="val">{{ identified_users }}</div></div>
+    <div class="card kpi"><div>New Registrations</div><div class="val">{{ new_registrations }}</div></div>
+    <div class="card kpi"><div>Logins</div><div class="val">{{ logins }}</div></div>
   </div>
 
   <div class="grid grid-2 section">
@@ -128,6 +131,30 @@
           </tr>
         {% empty %}
           <tr><td colspan="5" class="muted">No leads yet</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section card">
+    <h2>Recent Users</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>User ID</th><th>Email</th><th>Name</th><th>First Seen</th><th>Last Seen</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user_session in recent_users %}
+          <tr>
+            <td>{{ user_session.user_external_id|default:"—" }}</td>
+            <td>{{ user_session.user_email|default:"—" }}</td>
+            <td>{{ user_session.user_name|default:"—" }}</td>
+            <td>{{ user_session.first_seen }}</td>
+            <td>{{ user_session.last_seen }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="muted">No identified users yet</td></tr>
         {% endfor %}
       </tbody>
     </table>
