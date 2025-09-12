@@ -22,9 +22,14 @@ class Session(models.Model):
     user_agent   = models.TextField(blank=True, null=True)
     device_info  = models.TextField(blank=True, null=True)
     ip_address   = models.GenericIPAddressField(blank=True, null=True)
-    location_data = models.TextField(blank=True, null=True)  # GeoIP data JSON
-    created_at   = models.DateTimeField(auto_now_add=True)
-    updated_at   = models.DateTimeField(auto_now=True)
+    location_data = models.TextField(blank=True, null=True)
+    # NEW identity fields:
+    user_external_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
+    user_email       = models.EmailField(blank=True, null=True, db_index=True)
+    user_name        = models.CharField(max_length=255, blank=True, null=True)
+
+    first_seen   = models.DateTimeField(auto_now_add=True)
+    last_seen    = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.session_id

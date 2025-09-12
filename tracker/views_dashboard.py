@@ -1,9 +1,14 @@
-from django.db.models import Count, Q
+from django.db.models import Count
 from django.db.models.functions import TruncDate
 from django.shortcuts import render
 from django.utils import timezone
-from datetime import timedelta
+from django.http import HttpResponse
+from datetime import timedelta, datetime
+import csv
+import json
+
 from .models import Event, Lead, Session
+
 
 def dashboard(request):
     # --- Filters ---
@@ -16,14 +21,18 @@ def dashboard(request):
     default_to = now.date()
 
     def _parse(d, default):
+        if not d:
+            return default
         try:
-            return timezone.datetime.fromisoformat(d).date()
+            # expects YYYY-MM-DD
+            return datetime.fromisoformat(d).date()
         except Exception:
             return default
 
     start_date = _parse(date_from, default_from)
     end_date = _parse(date_to, default_to)
 
+    # Base querysets (inclusive range)
     event_qs = Event.objects.filter(
         created_at__date__gte=start_date,
         created_at__date__lte=end_date
@@ -40,6 +49,43 @@ def dashboard(request):
     if site_key:
         event_qs = event_qs.filter(site_key=site_key)
         session_qs = session_qs.filter(site_key=site_key)
+
+    # -------- CSV Export (all filtered events) --------
+    if request.GET.get("export") == "csv":
+        filename = f"events_{start_date}_{end_date}"
+        if site_key:
+            filename += f"_{site_key}"
+        resp = HttpResponse(content_type="text/csv")
+        resp["Content-Disposition"] = f'attachment; filename="{filename}.csv"'
+        w = csv.writer(resp)
+        w.writerow([
+            "created_at", "event_type", "site_key",
+            "session_id", "client_id",
+            "url", "referrer",
+            "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
+            "lead_email", "lead_phone"
+        ])
+        for e in event_qs.select_related("session", "lead").order_by("created_at").iterator():
+            sess = getattr(e, "session", None)
+            lead = getattr(e, "lead", None)
+            w.writerow([
+                e.created_at.isoformat(),
+                e.event_type,
+                e.site_key or "",
+                getattr(sess, "session_id", "") or "",
+                getattr(sess, "client_id", "") or "",
+                e.url or "",
+                e.referrer or "",
+                e.utm_source or "",
+                e.utm_medium or "",
+                e.utm_campaign or "",
+                e.utm_term or "",
+                e.utm_content or "",
+                getattr(lead, "email", "") or "",
+                getattr(lead, "phone", "") or "",
+            ])
+        return resp
+    # --------------------------------------------------
 
     # KPIs
     total_events = event_qs.count()
@@ -97,13 +143,17 @@ def dashboard(request):
         "active_site_key": site_key or "",
         "from": start_date.isoformat(),
         "to": end_date.isoformat(),
+
         "total_events": total_events,
         "page_loads": page_loads,
         "form_submits": form_submits,
         "unique_visitors": unique_visitors,
         "new_leads": new_leads,
-        "days": days,
-        "counts": counts,
+
+        # For Chart.js (valid JSON)
+        "days_json": json.dumps(days),
+        "counts_json": json.dumps(counts),
+
         "top_pages": top_pages,
         "top_campaigns": top_campaigns,
         "recent_leads": recent_leads,

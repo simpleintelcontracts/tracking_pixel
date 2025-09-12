@@ -6,7 +6,7 @@ class LeadAdmin(admin.ModelAdmin):
     search_fields = ('first_name', 'last_name', 'email', 'phone')
 
 class SessionAdmin(admin.ModelAdmin):
-    list_display = ('session_id', 'client_id', 'created_at', 'updated_at')
+    list_display = ('session_id', 'client_id', 'first_seen', 'last_seen')
     search_fields = ('session_id', 'client_id')
 
 class EventAdmin(admin.ModelAdmin):

@@ -135,8 +135,9 @@
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
-    const labels = JSON.parse('{{ days|safe }}');
-    const data = JSON.parse('{{ counts|safe }}');
+    // Use JSON already rendered by the view
+    const labels = JSON.parse('{{ days_json|safe }}');
+    const data = JSON.parse('{{ counts_json|safe }}');
 
     const ctx = document.getElementById('eventsChart').getContext('2d');
     new Chart(ctx, {
@@ -152,9 +153,7 @@
       },
       options: {
         responsive: true,
-        plugins: {
-          legend: { display: false }
-        },
+        plugins: { legend: { display: false } },
         scales: {
           x: { ticks: { maxRotation: 0, autoSkip: true } },
           y: { beginAtZero: true }

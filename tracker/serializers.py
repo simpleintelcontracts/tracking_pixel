@@ -5,14 +5,43 @@ from django.db import models
 from datetime import datetime
 import uuid as _uuid
 
-class EventSerializer(serializers.Serializer):
+class SessionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Session
+        fields = (
+            "session_id", "client_id", "site_key", "user_agent", "device_info",
+            "ip_address", "location_data", "first_seen", "last_seen",
+            "user_external_id", "user_email", "user_name",
+        )
+
+
+class EventSerializer(serializers.ModelSerializer):
+    # Re-add session-related fields for validation
+    client_id = serializers.CharField(max_length=255, allow_null=True, required=False, write_only=True)
+    session_id = serializers.CharField(max_length=255, write_only=True)
+    user_id = serializers.CharField(max_length=255, allow_null=True, required=False, write_only=True)
+    user_email = serializers.EmailField(allow_null=True, required=False, write_only=True)
+    user_name = serializers.CharField(max_length=255, allow_null=True, required=False, write_only=True)
+
     # Basic
     v = serializers.IntegerField(source='schema_version')
     site_key = serializers.CharField(max_length=255)
     event_id = serializers.UUIDField()  # <-- remove format='hex'
-    client_id = serializers.CharField(max_length=255, required=False, allow_blank=True)
-    session_id = serializers.CharField(max_length=255)
     event_type = serializers.ChoiceField(choices=Event.EVENT_TYPE_CHOICES)
+
+    class Meta:
+        model = Event
+        fields = (
+            "v", "site_key", "event_id", "event_type",
+            "url", "page_title", "referrer", "language", "tz_offset_min",
+            "viewport", "screen", "utm_source", "utm_medium", "utm_campaign",
+            "utm_term", "utm_content", "device_info", "location_data", "client_ts",
+            "event_data",
+            # Fields that are not directly on Event model but are handled in create()
+            "client_id", "session_id", "user_id", "user_email", "user_name",
+            "first_name", "last_name", "email", "phone", "property_address",
+        )
+
     # Page/meta
     url = serializers.URLField(max_length=2048, required=False, allow_blank=True)
     page_title = serializers.CharField(max_length=512, required=False, allow_blank=True)
@@ -59,25 +88,35 @@ class EventSerializer(serializers.Serializer):
                 raise serializers.ValidationError(f"event_data['{k}'] must be primitive.")
         return value
 
-    def create(self, validated):
-        # Pull out Session-ish fields
-        site_key = validated.pop("site_key")
-        schema_version = validated.pop("schema_version")
-        event_id = validated.pop("event_id")
-        client_id = validated.pop("client_id", None)
-        session_id = validated.pop("session_id")
-        device_info = validated.pop("device_info", "")
-        location_data = validated.pop("location_data", "")
+    def create(self, validated_data):
+        # Pop all fields that belong to Session or Lead before creating Event
+        # These are now direct fields on EventSerializer, so pop directly by their names.
+        client_id = validated_data.pop("client_id", None)
+        session_id = validated_data.pop("session_id")
+        user_external_id = validated_data.pop("user_id", None)
+        user_email = validated_data.pop("user_email", None)
+        user_name = validated_data.pop("user_name", None)
+
+        site_key = validated_data.pop("site_key") # Event also uses site_key, so pop here for session
+        device_info = validated_data.pop("device_info", "")
+        location_data = validated_data.pop("location_data", None)
+
+        lead_data = {
+            "first_name": validated_data.pop("first_name", None),
+            "last_name": validated_data.pop("last_name", None),
+            "email": validated_data.pop("email", None),
+            "phone": validated_data.pop("phone", None),
+            "property_address": validated_data.pop("property_address", None),
+        }
 
         request = self.context.get("request")
-        ip = None
-        ua = None
+        ip = None; ua = None
         if request:
-            # Prefer proxy header, fall back to REMOTE_ADDR
             xff = request.META.get("HTTP_X_FORWARDED_FOR")
             ip = (xff.split(",")[0].strip() if xff else request.META.get("REMOTE_ADDR"))
             ua = request.META.get("HTTP_USER_AGENT")
 
+        # Create or get Session
         session, created = Session.objects.get_or_create(
             session_id=session_id,
             defaults={
@@ -86,82 +125,53 @@ class EventSerializer(serializers.Serializer):
                 "user_agent": ua,
                 "device_info": device_info,
                 "ip_address": ip,
-                "location_data": location_data or None,
+                "location_data": location_data,
+                "user_external_id": user_external_id,
+                "user_email": user_email,
+                "user_name": user_name,
             },
         )
-        if not created:
-            changed = False
-            if client_id and not session.client_id:
-                session.client_id = client_id; changed = True
-            if site_key and not session.site_key:
-                session.site_key = site_key; changed = True
-            if ua and not session.user_agent:
-                session.user_agent = ua; changed = True
-            if ip and not session.ip_address:
-                session.ip_address = ip; changed = True
-            if changed:
-                session.save(update_fields=["client_id","site_key","user_agent","ip_address","last_seen"])
 
-        # Lead upsert (email > phone > address+name)
+        # Update session identity if newly provided
+        changed = False
+        if client_id and not session.client_id: session.client_id = client_id; changed = True
+        if site_key and not session.site_key: session.site_key = site_key; changed = True
+        if ua and not session.user_agent: session.user_agent = ua; changed = True
+        if ip and not session.ip_address: session.ip_address = ip; changed = True
+        if user_external_id and not session.user_external_id:
+            session.user_external_id = user_external_id; changed = True
+        if user_email and user_email != session.user_email:
+            session.user_email = user_email.lower(); changed = True
+        if user_name and not session.user_name:
+            session.user_name = user_name; changed = True
+        if changed: session.save()
+
+        # Lead upsert logic
         lead = None
-        lead_email = (validated.pop("email", None) or "").lower() or None
-        lead_phone = validated.pop("phone", None)
-        if lead_phone: lead_phone = "".join(ch for ch in lead_phone if ch.isdigit())
-        lead_first = validated.pop("first_name", None)
-        lead_last  = validated.pop("last_name", None)
-        lead_addr  = validated.pop("property_address", None)
+        cleaned_lead_data = {k: v for k, v in lead_data.items() if v}
 
-        lead_defaults = {
-            "first_name": lead_first or None,
-            "last_name": lead_last or None,
-            "email": lead_email,
-            "phone": lead_phone,
-            "property_address": lead_addr or None,
-        }
-        lead_defaults = {k: v for k, v in lead_defaults.items() if v}
+        if cleaned_lead_data:
+            lead_filter = models.Q()
+            if cleaned_lead_data.get("email"): lead_filter |= models.Q(email__iexact=cleaned_lead_data["email"])
+            if cleaned_lead_data.get("phone"): lead_filter |= models.Q(phone=cleaned_lead_data["phone"])
+            if cleaned_lead_data.get("property_address"): lead_filter |= models.Q(property_address__iexact=cleaned_lead_data["property_address"])
+            elif cleaned_lead_data.get("first_name") and cleaned_lead_data.get("last_name"): lead_filter |= models.Q(first_name__iexact=cleaned_lead_data["first_name"], last_name__iexact=cleaned_lead_data["last_name"])
 
-        def _update_lead_fields(_lead):
-            changed = False
-            for k, v in lead_defaults.items():
-                if v and not getattr(_lead, k):
-                    setattr(_lead, k, v); changed = True
-            if changed: _lead.save()
-
-        if lead_email:
-            lead, created = Lead.objects.get_or_create(email=lead_email, defaults=lead_defaults)
-            if not created: _update_lead_fields(lead)
-        elif lead_phone:
-            lead, created = Lead.objects.get_or_create(phone=lead_phone, defaults=lead_defaults)
-            if not created: _update_lead_fields(lead)
-        elif lead_addr or (lead_first and lead_last):
-            q = models.Q()
-            if lead_addr: q |= models.Q(property_address=lead_addr)
-            if lead_first and lead_last: q |= models.Q(first_name=lead_first, last_name=lead_last)
-            if q:
+            if lead_filter: 
                 try:
-                    lead = Lead.objects.get(q)
-                    _update_lead_fields(lead)
+                    lead = Lead.objects.get(lead_filter)
+                    for k, v in cleaned_lead_data.items():
+                        setattr(lead, k, v)
+                    lead.save()
                 except Lead.DoesNotExist:
-                    if lead_defaults:
-                        lead = Lead.objects.create(**lead_defaults)
-                except Lead.MultipleObjectsReturned:
-                    lead = Lead.objects.filter(q).first()
-                    if lead: _update_lead_fields(lead)
-
-        # Client timestamp parsing fallback
-        client_ts = validated.get("client_ts")
-        if isinstance(client_ts, str):
-            try:
-                validated["client_ts"] = datetime.fromisoformat(client_ts.replace("Z","+00:00"))
-            except Exception:
-                validated["client_ts"] = None
+                    lead = Lead.objects.create(**cleaned_lead_data)
 
         event = Event.objects.create(
-            event_id=event_id,
-            schema_version=schema_version,
+            event_id=validated_data.pop("event_id"),
+            schema_version=validated_data.pop("schema_version"),
             site_key=site_key,
             session=session,
             lead=lead,
-            **validated,
+            **validated_data
         )
         return event
