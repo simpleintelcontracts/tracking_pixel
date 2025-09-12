@@ -26,7 +26,7 @@
     button { padding: 8px 12px; border-radius:8px; border: 1px solid #0ea5e9; background:#0ea5e9; color:white; cursor:pointer; }
     button:disabled { opacity:.7; cursor:default; }
     .section { margin-top: 24px; }
-  </style>Page Loads
+  </style>
 </head>
 <body>
   <h1>Tracking Dashboard</h1>
@@ -109,6 +109,87 @@
           {% endfor %}
         </tbody>
       </table>
+    </div>
+  </div>
+
+  <!-- NEW: Top Referrers & Languages -->
+  <div class="grid grid-2 section">
+    <div class="card">
+      <h2>Top Referrers</h2>
+      <table>
+        <thead><tr><th>Referrer</th><th>Events</th></tr></thead>
+        <tbody>
+          {% for r in top_referrers %}
+            <tr>
+              <td style="max-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                <a href="{{ r.ref }}" target="_blank" rel="noopener">{{ r.ref }}</a>
+              </td>
+              <td>{{ r.events }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="2" class="muted">No data</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Languages</h2>
+      <table>
+        <thead><tr><th>Language</th><th>Events</th></tr></thead>
+        <tbody>
+          {% for l in lang_breakdown %}
+            <tr>
+              <td>{{ l.lang }}</td>
+              <td>{{ l.events }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="2" class="muted">No data</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- NEW: Device Mix & Top Searches -->
+  <div class="grid grid-2 section">
+    <div class="card">
+      <h2>Device Mix (by viewport)</h2>
+      <table>
+        <thead><tr><th>Bucket</th><th>Events</th></tr></thead>
+        <tbody>
+          {% for d in device_mix %}
+            <tr>
+              <td>{{ d.bucket }}</td>
+              <td>{{ d.events }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="2" class="muted">No data</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="muted">Mobile: &lt;640px, Tablet: 640–1023px, Desktop: ≥1024px</div>
+    </div>
+
+    <div class="card">
+      <h2>Top Searches</h2>
+      <table>
+        <thead><tr><th>Field</th><th>Query</th><th>Times</th></tr></thead>
+        <tbody>
+          {% for s in top_searches %}
+            <tr>
+              <td>{{ s.event_data__field__label|default:"Search" }}</td>
+              <td style="max-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                {{ s.event_data__field__value }}
+              </td>
+              <td>{{ s.times }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="3" class="muted">No searches captured</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="muted">Only explicit <code>search</code> events; sensitive fields are excluded.</div>
     </div>
   </div>
 

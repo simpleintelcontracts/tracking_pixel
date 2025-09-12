@@ -1,9 +1,9 @@
 from django.db import models
-from django.db.models import Count, Min, Max, Q
+from django.db.models import Count, Q, Value, CharField, IntegerField
+from django.db.models.functions import Coalesce, Cast
 from django.shortcuts import render
-from django.utils import timezone
 from django.http import HttpResponse
-from datetime import timedelta, date, datetime
+from datetime import timedelta, date
 import csv
 import json
 
@@ -54,7 +54,6 @@ def dashboard(request):
             'URL', 'Page Title', 'Referrer', 'UTM Source', 'UTM Campaign', 'Created At'
         ])
         for e in events_qs.select_related('session'):
-            # Extract fields from event_data for CSV export
             event_data = e.event_data or {}
             url = e.url or event_data.get('meta_url', '')
             page_title = e.page_title or event_data.get('meta_page_title', '')
@@ -89,7 +88,7 @@ def dashboard(request):
         .values('client_id').distinct().count()
     )
 
-    # Identified users: (based on Session model)
+    # Identified users (from Session model)
     identified_users = (
         sessions_qs
         .filter(Q(user_external_id__isnull=False) | Q(user_email__isnull=False))
@@ -108,7 +107,6 @@ def dashboard(request):
     ).count()
 
     # --- Time series (daily) ---
-    # Build a dense series from from_date..to_date
     daily_counts = (
         events_qs
         .annotate(date=models.functions.TruncDate('created_at'))
@@ -116,10 +114,8 @@ def dashboard(request):
         .annotate(count=Count('id'))
         .order_by('date')
     )
-    # Map to dict for fast lookup
     by_day = {row['date']: row['count'] for row in daily_counts}
-    days = []
-    counts = []
+    days, counts = [], []
     cur = from_date
     while cur <= to_date:
         days.append(cur.isoformat())
@@ -128,29 +124,81 @@ def dashboard(request):
 
     # --- Top pages / campaigns ---
     top_pages = (
-        events_qs.annotate(page_url=models.functions.Coalesce(
+        events_qs.annotate(page_url=Coalesce(
             'url', models.F('event_data__meta_url'),
             output_field=models.TextField()
         ))
-        .exclude(page_url__isnull=True)
+        .exclude(page_url__isnull=True).exclude(page_url='')
         .values('page_url')
         .annotate(events=Count('id'))
         .order_by('-events')[:10]
     )
+
     top_campaigns = (
         events_qs
-        .annotate(source=models.functions.Coalesce(
+        .annotate(source=Coalesce(
             'utm_source', models.F('event_data__utm_source'),
             output_field=models.TextField()
         ))
-        .annotate(campaign=models.functions.Coalesce(
+        .annotate(campaign=Coalesce(
             'utm_campaign', models.F('event_data__utm_campaign'),
             output_field=models.TextField()
         ))
         .values('source', 'campaign')
-        .exclude(source__isnull=True)
+        .exclude(source__isnull=True).exclude(source='')
         .annotate(events=Count('id'))
         .order_by('-events')[:10]
+    )
+
+    # --- New sections from payload ---
+
+    # Top Referrers
+    top_referrers = (
+        events_qs
+        .annotate(ref=Coalesce('referrer', models.F('event_data__meta_referrer')))
+        .exclude(ref__isnull=True).exclude(ref='')
+        .values('ref')
+        .annotate(events=Count('id'))
+        .order_by('-events')[:10]
+    )
+
+    # Languages
+    lang_breakdown = (
+        events_qs
+        .annotate(lang=Coalesce('language', models.F('event_data__meta_language')))
+        .exclude(lang__isnull=True).exclude(lang='')
+        .values('lang')
+        .annotate(events=Count('id'))
+        .order_by('-events')[:10]
+    )
+
+    # Device mix (bucketed by viewport width)
+    vw_expr = Coalesce(models.F('event_data__meta_vw'), Value(0))
+    vw_int = Cast(vw_expr, IntegerField())
+    device_mix = (
+        events_qs
+        .annotate(vw=vw_int)
+        .annotate(bucket=models.Case(
+            models.When(vw__lt=640, then=Value('Mobile')),
+            models.When(vw__lt=1024, then=Value('Tablet')),
+            default=Value('Desktop'),
+            output_field=CharField(),
+        ))
+        .values('bucket')
+        .annotate(events=Count('id'))
+        .order_by('-events')
+    )
+
+    # Top Searches (only custom_event search, non-masked)
+    top_searches = (
+        events_qs.filter(
+            event_type='custom_event',
+            event_data__event_name='search',
+            event_data__field__masked=False,
+        )
+        .values('event_data__field__label', 'event_data__field__value')
+        .annotate(times=Count('id'))
+        .order_by('-times')[:10]
     )
 
     # --- Leads ---
@@ -183,7 +231,11 @@ def dashboard(request):
         'top_pages': top_pages,
         'top_campaigns': top_campaigns,
 
-        # JSON for Chart.js
+        'top_referrers': top_referrers,
+        'lang_breakdown': lang_breakdown,
+        'device_mix': list(device_mix),
+        'top_searches': top_searches,
+
         'days_json': json.dumps(days),
         'counts_json': json.dumps(counts),
     }
