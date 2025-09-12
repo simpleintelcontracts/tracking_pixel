@@ -12,6 +12,7 @@ from django.http import HttpResponse
 import uuid
 import time
 import json
+import csv
 
 from django.shortcuts import render
 from django.db.models import Count
@@ -117,6 +118,30 @@ def dashboard_view(request):
 
     events_qs = events_qs.filter(created_at__date__range=[from_date, to_date])
     leads_qs = leads_qs.filter(created_at__date__range=[from_date, to_date])
+
+    # Handle CSV export
+    if request.GET.get('export') == 'csv':
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="events_export.csv"'
+
+        writer = csv.writer(response)
+        writer.writerow(['Event ID', 'Event Type', 'Site Key', 'Session ID', 'Client ID', 'URL', 'Page Title', 'Referrer', 'UTM Source', 'UTM Campaign', 'Created At'])
+
+        for event in events_qs.select_related('session'):
+            writer.writerow([
+                str(event.event_id),
+                event.event_type,
+                event.site_key,
+                event.session.session_id if event.session else '',
+                event.session.client_id if event.session else '',
+                event.url or '',
+                event.page_title or '',
+                event.referrer or '',
+                event.utm_source or '',
+                event.utm_campaign or '',
+                event.created_at.isoformat(),
+            ])
+        return response
 
     # KPIs
     total_events = events_qs.count()
