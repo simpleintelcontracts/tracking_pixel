@@ -1,0 +1,5 @@
+django-rest-framework
+Django
+celery
+django-cors-headers
+requests
