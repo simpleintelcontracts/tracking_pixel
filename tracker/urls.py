@@ -1,8 +1,9 @@
 # tracker/urls.py
 from django.urls import path
-from .views import CollectView, collect_gif_view
+from . import views
 
 urlpatterns = [
-    path("collect/", CollectView.as_view(), name="tracker-collect"),
-    path("collect.gif", collect_gif_view, name="tracker-collect-gif"),
+    path('collect/', views.CollectView.as_view(), name='collect'),
+    path('collect.gif', views.collect_gif_view, name='collect_gif'),
+    path('dashboard/', views.dashboard_view, name='dashboard'),
 ]
