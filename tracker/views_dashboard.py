@@ -79,11 +79,11 @@ def dashboard(request):
         .values('client_id').distinct().count()
     )
 
-    identified_users = (
-        sessions_qs.filter(Q(user_external_id__isnull=False) | Q(user_email__isnull=False))
-        .distinct().count()
-    )
-
+    # identified_users = (
+    #     sessions_qs.filter(Q(user_external_id__isnull=False) | Q(user_email__isnull=False))
+    #     .distinct().count()
+    # )
+    #
     new_registrations = events_qs.filter(
         event_type='custom_event',
         event_data__event_name__in=['user_registered', 'user_register']
@@ -92,15 +92,15 @@ def dashboard(request):
         event_type='custom_event',
         event_data__event_name__in=['user_logged_in', 'user_login']
     ).count()
-
-    events_with_identity = events_qs.filter(
-        Q(event_data__identity_user_id__isnull=False) |
-        Q(event_data__identity_user_email__isnull=False) |
-        Q(event_data__identity_user_name__isnull=False) |
-        Q(session__user_external_id__isnull=False) |
-        Q(session__user_email__isnull=False)
-    ).count()
-    identity_coverage_pct = round((events_with_identity / total_events) * 100, 1) if total_events else 0.0
+    #
+    # events_with_identity = events_qs.filter(
+    #     Q(event_data__identity_user_id__isnull=False) |
+    #     Q(event_data__identity_user_email__isnull=False) |
+    #     Q(event_data__identity_user_name__isnull=False) |
+    #     Q(session__user_external_id__isnull=False) |
+    #     Q(session__user_email__isnull=False)
+    # ).count()
+    # identity_coverage_pct = round((events_with_identity / total_events) * 100, 1) if total_events else 0.0
 
     # --- Time series (daily) ---
     daily_counts = (
@@ -242,11 +242,11 @@ def dashboard(request):
         'page_loads': page_loads,
         'form_submits': form_submits,
         'unique_visitors': unique_visitors,
-        'identified_users': identified_users,
+        # 'identified_users': identified_users,
         'new_registrations': new_registrations,
         'logins': logins,
-        'events_with_identity': events_with_identity,
-        'identity_coverage_pct': identity_coverage_pct,
+        # 'events_with_identity': events_with_identity,
+        # 'identity_coverage_pct': identity_coverage_pct,
 
         # Main time series
         'days_json': json.dumps(days),
