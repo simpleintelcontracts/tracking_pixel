@@ -70,7 +70,7 @@ def collect_gif_view(request):
 
     data = request.GET.dict()
     data.setdefault("event_type", "page_load")
-    data.setdefault("v", 0)
+    data.setdefault("v", 1)
     data.setdefault("site_key", "noscript_fallback")
     data["session_id"] = generate_simple_session_id()
     data["client_id"]  = generate_simple_client_id()
