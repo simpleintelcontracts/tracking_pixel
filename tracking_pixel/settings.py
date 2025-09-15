@@ -135,7 +135,7 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS settings
-CORS_ALLOWED_ORIGINS = "*"
+CORS_ALLOW_ALL_ORIGINS = True
 
 CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
 
