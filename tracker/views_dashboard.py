@@ -1,16 +1,61 @@
-from django.db import models
-from django.db.models import (
-    Count, Q, Value, CharField, IntegerField, FloatField, TextField, F
-)
-from django.db.models.functions import Coalesce, TruncDate
-from django.shortcuts import render
-from django.http import HttpResponse
 from datetime import timedelta, date
 import csv
 import json
 
+from django.db import models
+from django.db.models import (
+    Count, Q, Value, CharField, IntegerField, FloatField, TextField, F, Func
+)
+from django.db.models.functions import Coalesce, TruncDate, Cast
+from django.shortcuts import render
+from django.http import HttpResponse
+
 from .models import Event, Lead, Session
 
+
+# --- Helpers ---------------------------------------------------------------
+
+def jsonb_text(field, *keys):
+    """
+    Extract TEXT from a JSON/JSONB field path using Postgres jsonb_extract_path_text.
+    Works for JSONB and JSONField columns (Django will cast to JSONB in PG).
+    """
+    return Func(
+        field, *[Value(k) for k in keys],
+        function='jsonb_extract_path_text',
+        output_field=TextField(),
+    )
+
+
+def nullif_empty(expr):
+    """
+    Produces NULLIF(expr, '') so empty strings don't break numeric casts.
+    """
+    return Func(
+        expr, Value(''),
+        function='NULLIF',
+        template='NULLIF(%(expressions)s)',
+        output_field=TextField(),  # result is text or NULL
+    )
+
+
+def as_int(expr):
+    """
+    Cast a text (or text-y) SQL expression to INTEGER safely:
+    NULLIF handles '' and Cast handles numeric text; returns IntegerField.
+    """
+    return Cast(nullif_empty(expr), IntegerField())
+
+
+def as_float(expr):
+    """
+    Cast a text (or text-y) SQL expression to FLOAT safely:
+    NULLIF handles '' and Cast handles numeric text; returns FloatField.
+    """
+    return Cast(nullif_empty(expr), FloatField())
+
+
+# --- View ------------------------------------------------------------------
 
 def dashboard(request):
     # --- Date range defaults (last 14 days) ---
@@ -79,28 +124,16 @@ def dashboard(request):
         .values('client_id').distinct().count()
     )
 
-    # identified_users = (
-    #     sessions_qs.filter(Q(user_external_id__isnull=False) | Q(user_email__isnull=False))
-    #     .distinct().count()
-    # )
-    #
+    # Use JSON field lookups directly for event_name (no annotation needed)
     new_registrations = events_qs.filter(
         event_type='custom_event',
-        event_data__event_name__in=['user_registered', 'user_register']     
+        event_data__event_name__in=['user_registered', 'user_register']
     ).count()
+
     logins = events_qs.filter(
         event_type='custom_event',
         event_data__event_name__in=['user_logged_in', 'user_login']
     ).count()
-    #
-    # events_with_identity = events_qs.filter(
-    #     Q(event_data__identity_user_id__isnull=False) |
-    #     Q(event_data__identity_user_email__isnull=False) |
-    #     Q(event_data__identity_user_name__isnull=False) |
-    #     Q(session__user_external_id__isnull=False) |
-    #     Q(session__user_email__isnull=False)
-    # ).count()
-    # identity_coverage_pct = round((events_with_identity / total_events) * 100, 1) if total_events else 0.0
 
     # --- Time series (daily) ---
     daily_counts = (
@@ -121,7 +154,7 @@ def dashboard(request):
     # --- Top pages / marketing / referrers ---
     top_pages = (
         events_qs.annotate(
-            page_url=Coalesce('url', F('event_data__meta_url'), output_field=TextField())
+            page_url=Coalesce('url', jsonb_text(F('event_data'), 'meta_url'), output_field=TextField())
         )
         .exclude(page_url__isnull=True).exclude(page_url='')
         .values('page_url')
@@ -131,8 +164,8 @@ def dashboard(request):
 
     top_campaigns = (
         events_qs
-        .annotate(source=Coalesce('utm_source', F('event_data__utm_source'), output_field=TextField()))
-        .annotate(campaign=Coalesce('utm_campaign', F('event_data__utm_campaign'), output_field=TextField()))
+        .annotate(source=Coalesce('utm_source', jsonb_text(F('event_data'), 'utm_source'), output_field=TextField()))
+        .annotate(campaign=Coalesce('utm_campaign', jsonb_text(F('event_data'), 'utm_campaign'), output_field=TextField()))
         .values('source', 'campaign')
         .exclude(source__isnull=True).exclude(source='')
         .annotate(events=Count('id'))
@@ -141,7 +174,7 @@ def dashboard(request):
 
     top_sources = (
         events_qs
-        .annotate(source=Coalesce('utm_source', F('event_data__utm_source'), output_field=TextField()))
+        .annotate(source=Coalesce('utm_source', jsonb_text(F('event_data'), 'utm_source'), output_field=TextField()))
         .values('source')
         .exclude(source__isnull=True).exclude(source='')
         .annotate(events=Count('id'))
@@ -150,7 +183,7 @@ def dashboard(request):
 
     top_mediums = (
         events_qs
-        .annotate(medium=Coalesce('utm_medium', F('event_data__utm_medium'), output_field=TextField()))
+        .annotate(medium=Coalesce('utm_medium', jsonb_text(F('event_data'), 'utm_medium'), output_field=TextField()))
         .values('medium')
         .exclude(medium__isnull=True).exclude(medium='')
         .annotate(events=Count('id'))
@@ -159,7 +192,7 @@ def dashboard(request):
 
     top_referrers = (
         events_qs.annotate(
-            ref=Coalesce('referrer', F('event_data__meta_referrer'), output_field=TextField())
+            ref=Coalesce('referrer', jsonb_text(F('event_data'), 'meta_referrer'), output_field=TextField())
         )
         .values('ref').exclude(ref__isnull=True).exclude(ref='')
         .annotate(events=Count('id')).order_by('-events')[:10]
@@ -190,29 +223,62 @@ def dashboard(request):
     recent_events = (
         events_qs.select_related('session')
         .annotate(
-            page_url=Coalesce('url', F('event_data__meta_url'), output_field=TextField()),
-            page_title_an=Coalesce('page_title', F('event_data__meta_page_title'), output_field=TextField()),
-            ref=Coalesce('referrer', F('event_data__meta_referrer'), output_field=TextField()),
-            lang=Coalesce('language', F('event_data__meta_language'), output_field=TextField()),
-            tz=Coalesce('tz_offset_min', F('event_data__meta_tz_offset_min'), output_field=IntegerField()),
-            vw=Coalesce(F('viewport__w'), F('event_data__meta_vw'), output_field=IntegerField()),
-            vh=Coalesce(F('viewport__h'), F('event_data__meta_vh'), output_field=IntegerField()),
-            sw=Coalesce(F('screen__w'), F('event_data__meta_sw'), output_field=IntegerField()),
-            sh=Coalesce(F('screen__h'), F('event_data__meta_sh'), output_field=IntegerField()),
-            dpr=Coalesce(F('screen__dpr'), F('event_data__meta_dpr'), output_field=FloatField()),
-            utm_source_an=Coalesce('utm_source', F('event_data__utm_source'), output_field=TextField()),
-            utm_medium_an=Coalesce('utm_medium', F('event_data__utm_medium'), output_field=TextField()),
-            utm_campaign_an=Coalesce('utm_campaign', F('event_data__utm_campaign'), output_field=TextField()),
-            utm_term_an=Coalesce('utm_term', F('event_data__utm_term'), output_field=TextField()),
-            utm_content_an=Coalesce('utm_content', F('event_data__utm_content'), output_field=TextField()),
-            evname=Coalesce(F('event_data__event_name'), Value('', output_field=CharField()), output_field=CharField()),
-            fld_label=F('event_data__field__label'),
-            fld_type=F('event_data__field__type'),
-            fld_value=F('event_data__field__value'),
-            fld_masked=F('event_data__field__masked'),
-            id_user_id=Coalesce(F('event_data__identity_user_id'), F('session__user_external_id'), output_field=TextField()),
-            id_user_email=Coalesce(F('event_data__identity_user_email'), F('session__user_email'), output_field=TextField()),
-            id_user_name=Coalesce(F('event_data__identity_user_name'), F('session__user_name'), output_field=TextField()),
+            # Page & meta text
+            page_url=Coalesce('url', jsonb_text(F('event_data'), 'meta_url'), output_field=TextField()),
+            page_title_an=Coalesce('page_title', jsonb_text(F('event_data'), 'meta_page_title'), output_field=TextField()),
+            ref=Coalesce('referrer', jsonb_text(F('event_data'), 'meta_referrer'), output_field=TextField()),
+            lang=Coalesce('language', jsonb_text(F('event_data'), 'meta_language'), output_field=TextField()),
+
+            # Numeric values: ALWAYS convert JSON to TEXT via jsonb_text, then cast.
+            # Prefer the column JSON (viewport/screen) if present, else fallback to event_data meta_*.
+            tz=as_int(jsonb_text(F('event_data'), 'meta_tz_offset_min')),
+
+            vw=Coalesce(
+                as_int(jsonb_text(F('viewport'), 'w')),
+                as_int(jsonb_text(F('event_data'), 'meta_vw')),
+                output_field=IntegerField(),
+            ),
+            vh=Coalesce(
+                as_int(jsonb_text(F('viewport'), 'h')),
+                as_int(jsonb_text(F('event_data'), 'meta_vh')),
+                output_field=IntegerField(),
+            ),
+            sw=Coalesce(
+                as_int(jsonb_text(F('screen'), 'w')),
+                as_int(jsonb_text(F('event_data'), 'meta_sw')),
+                output_field=IntegerField(),
+            ),
+            sh=Coalesce(
+                as_int(jsonb_text(F('screen'), 'h')),
+                as_int(jsonb_text(F('event_data'), 'meta_sh')),
+                output_field=IntegerField(),
+            ),
+            dpr=Coalesce(
+                as_float(jsonb_text(F('screen'), 'dpr')),
+                as_float(jsonb_text(F('event_data'), 'meta_dpr')),
+                output_field=FloatField(),
+            ),
+
+            # UTM
+            utm_source_an=Coalesce('utm_source', jsonb_text(F('event_data'), 'utm_source'), output_field=TextField()),
+            utm_medium_an=Coalesce('utm_medium', jsonb_text(F('event_data'), 'utm_medium'), output_field=TextField()),
+            utm_campaign_an=Coalesce('utm_campaign', jsonb_text(F('event_data'), 'utm_campaign'), output_field=TextField()),
+            utm_term_an=Coalesce('utm_term', jsonb_text(F('event_data'), 'utm_term'), output_field=TextField()),
+            utm_content_an=Coalesce('utm_content', jsonb_text(F('event_data'), 'utm_content'), output_field=TextField()),
+
+            # Event name as text
+            evname=Coalesce(jsonb_text(F('event_data'), 'event_name'), Value(''), output_field=CharField()),
+
+            # Field details as text
+            fld_label=jsonb_text(F('event_data'), 'field', 'label'),
+            fld_type=jsonb_text(F('event_data'), 'field', 'type'),
+            fld_value=jsonb_text(F('event_data'), 'field', 'value'),
+            fld_masked=jsonb_text(F('event_data'), 'field', 'masked'),
+
+            # Identity fallbacks
+            id_user_id=Coalesce(jsonb_text(F('event_data'), 'identity_user_id'), F('session__user_external_id'), output_field=TextField()),
+            id_user_email=Coalesce(jsonb_text(F('event_data'), 'identity_user_email'), F('session__user_email'), output_field=TextField()),
+            id_user_name=Coalesce(jsonb_text(F('event_data'), 'identity_user_name'), F('session__user_name'), output_field=TextField()),
         )
         .order_by('-created_at')[:10]
         .values(
@@ -242,11 +308,8 @@ def dashboard(request):
         'page_loads': page_loads,
         'form_submits': form_submits,
         'unique_visitors': unique_visitors,
-        # 'identified_users': identified_users,
         'new_registrations': new_registrations,
         'logins': logins,
-        # 'events_with_identity': events_with_identity,
-        # 'identity_coverage_pct': identity_coverage_pct,
 
         # Main time series
         'days_json': json.dumps(days),
