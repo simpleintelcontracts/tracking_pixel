@@ -136,8 +136,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://35.222.218.168:3000",
+    "https://d4d.venveodev.com/",
 ]
 
 CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
@@ -154,5 +153,7 @@ REST_FRAMEWORK = {
     },
 }
 
-# Optional: where your MaxMind DB lives
-GEOIP_DATABASE_PATH = "geoip/GeoLite2-City.mmdb" 
+# If DRF+cookies/CSRF are involved:
+CSRF_TRUSTED_ORIGINS = [
+    "https://d4d.venveodev.com/",
+]
