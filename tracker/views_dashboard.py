@@ -86,7 +86,7 @@ def dashboard(request):
     #
     new_registrations = events_qs.filter(
         event_type='custom_event',
-        event_data__event_name__in=['user_registered', 'user_register']
+        event_data__event_name__in=['user_registered', 'user_register']     
     ).count()
     logins = events_qs.filter(
         event_type='custom_event',
