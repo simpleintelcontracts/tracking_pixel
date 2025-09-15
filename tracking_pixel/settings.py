@@ -135,9 +135,7 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS settings
-CORS_ALLOWED_ORIGINS = [
-    "https://d4d.venveodev.com/",
-]
+CORS_ALLOWED_ORIGINS = "*"
 
 CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
 
@@ -152,8 +150,3 @@ REST_FRAMEWORK = {
         "tracker": "120/min",  # used by TrackerRateThrottle
     },
 }
-
-# If DRF+cookies/CSRF are involved:
-CSRF_TRUSTED_ORIGINS = [
-    "https://d4d.venveodev.com/",
-]
