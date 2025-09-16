@@ -1,39 +1,88 @@
 {% load static %}
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Tracking Dashboard</title>
+  <title>Tracking Dashboard — Advanced UI</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
   <link href="https://unpkg.com/modern-normalize/modern-normalize.css" rel="stylesheet">
   <style>
-    body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; padding: 24px; color:#0f172a; }
-    .grid { display: grid; gap: 16px; }
-    .grid-4 { grid-template-columns: repeat(4,minmax(0,1fr)); }
-    .grid-3 { grid-template-columns: repeat(3,minmax(0,1fr)); }
-    .grid-2 { grid-template-columns: repeat(2,minmax(0,1fr)); }
-    .card { background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; box-shadow:0 1px 2px rgba(0,0,0,.04); }
-    .kpi { font-size: 14px; color:#475569; }
-    .kpi .val { font-size: 28px; font-weight: 700; color:#0f172a; }
-    .muted { color:#64748b; font-size: 12px; }
-    h1 { font-size: 24px; margin: 0 0 16px; }
-    h2 { font-size: 18px; margin: 0 0 12px; }
-    table { width: 100%; border-collapse: collapse; font-size: 14px; }
-    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #e2e8f0; }
-    th { color:#475569; font-weight:600; background:#f8fafc; }
-    .toolbar { display:flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
-    select, input[type="date"] { padding: 6px 8px; border:1px solid #cbd5e1; border-radius:8px; }
-    button { padding: 8px 12px; border-radius:8px; border: 1px solid #0ea5e9; background:#0ea5e9; color:white; cursor:pointer; }
-    button:disabled { opacity:.7; cursor:default; }
-    .section { margin-top: 24px; }
-    .nowrap { white-space: nowrap; }
-    .ellipsis { max-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    :root{
+      --bg:#f8fafc; --card:#ffffff; --muted:#64748b; --text:#0f172a; --accent:#0ea5e9; --border:#e6eef6;
+      --radius:12px; --gap:18px;
+    }
+    *{box-sizing:border-box}
+    body{font-family:Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial; background:var(--bg); color:var(--text); padding:24px;}
+
+    /* Increased app width further for advanced view */
+    .app{max-width:1720px; margin:0 auto}
+    header{display:flex;align-items:center;gap:16px; justify-content:space-between; margin-bottom:20px}
+    .brand{display:flex;gap:12px;align-items:center}
+    .logo{width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,var(--accent),#0369a1);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
+    h1{font-size:20px;margin:0}
+    .sub{color:var(--muted);font-size:13px}
+
+    /* Toolbar */
+    .toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    .toolbar label{display:flex;flex-direction:column;font-size:12px;color:var(--muted)}
+    select,input[type=date],input[type=text]{padding:9px 11px;border:1px solid var(--border);border-radius:10px;background:#fff}
+    .btn{padding:9px 14px;border-radius:10px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer}
+    .btn.ghost{background:transparent;color:var(--accent);border:1px solid rgba(14,165,233,.12)}
+
+    /* Grid & advanced layout with slightly wider sidebar */
+    .advanced-layout{display:grid;grid-template-columns:380px 1fr;gap:24px}
+    @media (max-width:1400px){.advanced-layout{grid-template-columns:320px 1fr}}
+    @media (max-width:900px){.advanced-layout{grid-template-columns:1fr}}
+
+    .card{background:var(--card);border-radius:var(--radius);padding:18px;border:1px solid var(--border);box-shadow:0 6px 26px rgba(2,6,23,0.04)}
+    .kpi{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:6px}
+    .kpi .val{font-size:30px;font-weight:700;color:var(--text)}
+    .muted{color:var(--muted);font-size:12px}
+
+    /* Tables */
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th,td{padding:10px;border-bottom:1px solid var(--border);text-align:left}
+    th{background:#f1f7fb;color:var(--muted);font-weight:600;font-size:12px}
+    a.inline{color:var(--accent);text-decoration:none}
+
+    /* Sidebar */
+    .sidebar{position:relative}
+    .filter-group{background:#fbfeff;padding:14px;border-radius:10px;border:1px solid #e8f6ff}
+    .small{font-size:12px;color:var(--muted)}
+
+    /* Responsive content grids */
+    .grid{display:grid;gap:var(--gap)}
+    .grid-4{grid-template-columns:repeat(4,1fr)}
+    .grid-3{grid-template-columns:repeat(3,1fr)}
+    .grid-2{grid-template-columns:repeat(2,1fr)}
+    @media (max-width:1000px){.grid-4{grid-template-columns:repeat(2,1fr)}.grid-3{grid-template-columns:repeat(2,1fr)}}
+    @media (max-width:600px){.grid-2{grid-template-columns:1fr}.grid-4{grid-template-columns:1fr}}
+
+    .ellipsis{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:600px;display:inline-block}
+    .nowrap{white-space:nowrap}
+
+    footer{margin-top:20px;color:var(--muted);font-size:12px;text-align:center}
   </style>
 </head>
 <body>
+  <div class="app">
+    <header>
+      <div class="brand">
+        <div class="logo">TD</div>
+        <div>
   <h1>Tracking Dashboard</h1>
+          <div class="sub">Site analytics — {{ from }} to {{ to }}</div>
+        </div>
+      </div>
 
-  <form class="toolbar" method="get">
+      <div class="toolbar">
+        <button class="btn ghost" id="helpBtn">Help</button>
+      </div>
+    </header>
+
+    <!-- top controls -->
+    <form class="toolbar card" method="get" aria-label="filters">
     <label>Site
       <select name="site_key">
         <option value="">All</option>
@@ -42,42 +91,142 @@
         {% endfor %}
       </select>
     </label>
+
     <label>From
       <input type="date" name="from" value="{{ from }}">
     </label>
+
     <label>To
       <input type="date" name="to" value="{{ to }}">
     </label>
-    <button type="submit">Apply</button>
-    <button type="submit" name="export" value="csv">Export CSV</button>
+
+      <label style="min-width:260px">Search
+        <input type="text" name="q" placeholder="Search pages, referrers, leads..." value="{{ request.GET.q|default:'' }}">
+      </label>
+
+      <button class="btn" type="submit">Apply</button>
+      <button class="btn ghost" type="submit" name="export" value="csv">Export CSV</button>
   </form>
 
-  <div class="grid grid-4">
+    <!-- Advanced-only layout -->
+    <main class="advanced-layout" id="mainLayout">
+
+      <!-- Sidebar (always visible in advanced) -->
+      <aside class="sidebar card">
+        <h2>Filters & Settings</h2>
+        <div class="filter-group">
+          <div class="small">Traffic Source</div>
+          <select name="utm_source">
+            <option value="">All Sources</option>
+            <option value="google">Google</option>
+            <option value="facebook">Facebook</option>
+            <option value="linkedin">LinkedIn</option>
+            <option value="direct">Direct</option>
+            <option value="email">Email</option>
+            <option value="organic">Organic Search</option>
+          </select>
+
+          <div style="height:12px"></div>
+          <div class="small">Campaign Medium</div>
+          <select name="utm_medium">
+            <option value="">All Mediums</option>
+            <option value="cpc">Paid Search (CPC)</option>
+            <option value="social">Social Media</option>
+            <option value="email">Email Marketing</option>
+            <option value="referral">Referral</option>
+            <option value="organic">Organic</option>
+            <option value="display">Display Ads</option>
+          </select>
+
+          <div style="height:12px"></div>
+          <div class="small">Event Type</div>
+          <select name="event_type">
+            <option value="">All Events</option>
+            <option value="pageview">Page Views</option>
+            <option value="submit">Form Submissions</option>
+            <option value="click">Button Clicks</option>
+            <option value="scroll">Scroll Events</option>
+            <option value="download">Downloads</option>
+          </select>
+
+          <div style="height:12px"></div>
+          <div class="small">Conversion Status</div>
+          <select name="conversion_status">
+            <option value="">All Visitors</option>
+            <option value="converted">Converted</option>
+            <option value="engaged">Highly Engaged</option>
+            <option value="bounce">Bounced</option>
+            <option value="returning">Returning Visitors</option>
+          </select>
+
+          <div style="height:12px"></div>
+          <div class="small">Lead Quality</div>
+          <select name="lead_score">
+            <option value="">All Leads</option>
+            <option value="hot">Hot Leads (80-100)</option>
+            <option value="warm">Warm Leads (60-79)</option>
+            <option value="cold">Cold Leads (40-59)</option>
+            <option value="unqualified">Unqualified (<40)</option>
+          </select>
+
+          <div style="height:14px"></div>
+          <button class="btn">Apply Advanced Filters</button>
+        </div>
+
+        <div style="height:18px"></div>
+        <div class="small">Quick Analytics Views</div>
+        <ul style="padding-left:16px;margin-top:6px">
+          <li><a href="?utm_medium=cpc">Paid Traffic Only</a></li>
+          <li><a href="?event_type=submit">Form Conversions</a></li>
+          <li><a href="?conversion_status=converted">Converted Visitors</a></li>
+          <li><a href="?lead_score=hot">Hot Leads</a></li>
+          <li><a href="?utm_source=organic">Organic Traffic</a></li>
+          <li><a href="?conversion_status=bounce">Bounce Analysis</a></li>
+        </ul>
+
+        <div style="height:18px"></div>
+        <div class="small">Export Options</div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+          <button class="btn ghost" onclick="exportData('leads')">Export Leads CSV</button>
+          <button class="btn ghost" onclick="exportData('events')">Export Events CSV</button>
+          <button class="btn ghost" onclick="exportData('analytics')">Export Analytics PDF</button>
+        </div>
+      </aside>
+
+      <!-- Main content area -->
+      <section id="content">
+        <section class="grid grid-4">
     <div class="card kpi"><div>Total Events</div><div class="val">{{ total_events }}</div></div>
     <div class="card kpi"><div>Page Loads</div><div class="val">{{ page_loads }}</div></div>
     <div class="card kpi"><div>Form Submissions</div><div class="val">{{ form_submits }}</div></div>
     <div class="card kpi"><div>Unique Visitors</div><div class="val">{{ unique_visitors }}</div></div>
-    {# <div class="card kpi"><div>Identified Users</div><div class="val">{{ identified_users }}</div></div> #}
-    {# <div class="card kpi"><div>Events with Identity</div><div class="val">{{ events_with_identity }}</div></div> #}
-    {# <div class="card kpi"><div>Identity Coverage</div><div class="val">{{ identity_coverage_pct }}%</div></div> #}
-    <div class="card kpi"><div>Logins / Registrations</div><div class="val">{{ logins }} / {{ new_registrations }}</div></div>
-  </div>
+        </section>
 
-  <div class="grid grid-2 section">
+        <section class="grid grid-2 section">
     <div class="card">
-      <h2>Events Over Time</h2>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <h2 style="margin:0">Events Over Time</h2>
+              <div class="small">Daily totals</div>
+            </div>
       <canvas id="eventsChart" height="120"></canvas>
       <div class="muted">Daily totals from {{ from }} to {{ to }}</div>
     </div>
+
     <div class="card">
       <h2>New Leads</h2>
-      <div class="kpi"><div class="val">{{ new_leads }}</div></div>
-      <div class="muted">Leads created within selected range</div>
+            <div class="kpi"><div class="val">{{ new_leads }}</div><div class="muted">Leads created within selected range</div></div>
+
+            <div style="height:14px"></div>
+            <h2 style="font-size:14px;margin-bottom:8px">Quick actions</h2>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn">Export Leads</button>
+              <button class="btn ghost">Open CRM</button>
     </div>
   </div>
+        </section>
 
-  <!-- Page & Navigation -->
-  <div class="grid grid-2 section">
+        <!-- Top lists -->
+        <section class="grid grid-2 section">
     <div class="card">
       <h2>Top Pages</h2>
       <table>
@@ -85,7 +234,7 @@
         <tbody>
           {% for row in top_pages %}
             <tr>
-              <td class="ellipsis"><a href="{{ row.page_url }}" target="_blank" rel="noopener">{{ row.page_url }}</a></td>
+                    <td class="ellipsis"><a class="inline" href="{{ row.page_url }}" target="_blank" rel="noopener">{{ row.page_url }}</a></td>
               <td class="nowrap">{{ row.events }}</td>
             </tr>
           {% empty %}
@@ -111,10 +260,10 @@
         </tbody>
       </table>
     </div>
-  </div>
+        </section>
 
-  <!-- Marketing -->
-  <div class="grid grid-3 section">
+        <!-- marketing -->
+        <section class="grid grid-3 section">
     <div class="card">
       <h2>Top Sources</h2>
       <table>
@@ -156,9 +305,9 @@
         </tbody>
       </table>
     </div>
-  </div>
+        </section>
 
-  <!-- Recent Searches (table only) -->
+        <!-- recent searches & events -->
   <div class="section card">
     <h2>Recent Searches</h2>
     <table>
@@ -175,7 +324,7 @@
                 {{ r.event_data__field__value|default:"—" }}
               {% endif %}
             </td>
-            <td class="ellipsis"><a href="{{ r.event_data__meta_url }}" target="_blank" rel="noopener">{{ r.event_data__meta_url }}</a></td>
+                  <td class="ellipsis"><a class="inline" href="{{ r.event_data__meta_url }}" target="_blank" rel="noopener">{{ r.event_data__meta_url }}</a></td>
           </tr>
         {% empty %}
           <tr><td colspan="4" class="muted">No recent searches</td></tr>
@@ -184,9 +333,9 @@
     </table>
   </div>
 
-  <!-- Recent events (denormalized essentials) -->
   <div class="section card">
     <h2>Recent Events (last 10)</h2>
+          <div style="overflow:auto">
     <table>
       <thead>
         <tr>
@@ -210,7 +359,7 @@
             <td class="nowrap">{{ e.created_at }}</td>
             <td>{{ e.event_type }}</td>
             <td>{{ e.evname|default:"—" }}</td>
-            <td class="ellipsis"><a href="{{ e.page_url }}" target="_blank" rel="noopener">{{ e.page_url }}</a></td>
+                  <td class="ellipsis"><a class="inline" href="{{ e.page_url }}" target="_blank" rel="noopener">{{ e.page_url }}</a></td>
             <td class="ellipsis">{{ e.page_title_an|default:"—" }}</td>
             <td class="ellipsis">{{ e.ref|default:"—" }}</td>
             <td class="ellipsis">
@@ -238,16 +387,15 @@
         {% endfor %}
       </tbody>
     </table>
+          </div>
   </div>
 
-  <div class="section card">
+        <!-- recent leads & users -->
+        <div class="section grid grid-2">
+          <div class="card">
     <h2>Recent Leads</h2>
     <table>
-      <thead>
-        <tr>
-          <th>Name</th><th>Email</th><th>Phone</th><th>Address</th><th>Created</th>
-        </tr>
-      </thead>
+              <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Address</th><th>Created</th></tr></thead>
       <tbody>
         {% for l in recent_leads %}
           <tr>
@@ -264,14 +412,10 @@
     </table>
   </div>
 
-  <div class="section card">
+          <div class="card">
     <h2>Recent Users</h2>
     <table>
-      <thead>
-        <tr>
-          <th>User ID</th><th>Email</th><th>Name</th><th>First Seen</th><th>Last Seen</th>
-        </tr>
-      </thead>
+              <thead><tr><th>User ID</th><th>Email</th><th>Name</th><th>First Seen</th><th>Last Seen</th></tr></thead>
       <tbody>
         {% for u in recent_users %}
           <tr>
@@ -286,25 +430,35 @@
         {% endfor %}
       </tbody>
     </table>
+          </div>
+        </div>
+
+        <footer>
+          Data updated: {{ now|default:None }} — Advanced layout, sidebar always visible
+        </footer>
+      </section>
+
+    </main>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
+    // parse server-provided JSON safely
     const labels = JSON.parse('{{ days_json|safe }}');
     const data = JSON.parse('{{ counts_json|safe }}');
 
-    const ctx = document.getElementById('eventsChart').getContext('2d');
+    const ctx = document.getElementById('eventsChart')?.getContext('2d');
+    if(ctx){
     new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [{ label: 'Events', data, tension: 0.3, fill: false }]
-      },
-      options: {
-        responsive: true,
-        plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true } }
-      }
+        type:'line',
+        data:{labels, datasets:[{label:'Events', data, tension:0.3, borderWidth:2, pointRadius:2, fill:false}]},
+        options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}
+      });
+    }
+
+    // help button — simple tooltip
+    document.getElementById('helpBtn')?.addEventListener('click', ()=>{
+      alert('Advanced view: sidebar filters are always visible. Use the top filters to narrow data.');
     });
   </script>
 </body>
