@@ -13,26 +13,57 @@
       --radius:12px; --gap:18px;
     }
     *{box-sizing:border-box}
-    body{font-family:Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial; background:var(--bg); color:var(--text); padding:24px;}
+    
+    /* Fixed viewport height */
+    html, body {
+      height: 100vh;
+      overflow: hidden;
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial; 
+      background:var(--bg); 
+      color:var(--text);
+      margin: 0;
+      padding: 0;
+    }
 
-    /* Increased app width further for advanced view */
-    .app{max-width:1720px; margin:0 auto}
-    header{display:flex;align-items:center;gap:16px; justify-content:space-between; margin-bottom:20px}
+    .app{
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      max-width:1720px; 
+      margin:0 auto;
+      padding: 24px;
+    }
+    
+    header{
+      display:flex;
+      align-items:center;
+      gap:16px; 
+      justify-content:space-between; 
+      margin-bottom:20px;
+      flex-shrink: 0;
+    }
     .brand{display:flex;gap:12px;align-items:center}
     .logo{width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,var(--accent),#0369a1);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
     h1{font-size:20px;margin:0}
     .sub{color:var(--muted);font-size:13px}
 
     /* Toolbar */
-    .toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    .toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap; margin-bottom: 20px; flex-shrink: 0;}
     .toolbar label{display:flex;flex-direction:column;font-size:12px;color:var(--muted)}
     select,input[type=date],input[type=text]{padding:9px 11px;border:1px solid var(--border);border-radius:10px;background:#fff}
     .btn{padding:9px 14px;border-radius:10px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer}
     .btn.ghost{background:transparent;color:var(--accent);border:1px solid rgba(14,165,233,.12)}
 
-    /* Grid & advanced layout with slightly wider sidebar */
-    .advanced-layout{display:grid;grid-template-columns:380px 1fr;gap:24px}
-    @media (max-width:1400px){.advanced-layout{grid-template-columns:320px 1fr}}
+    /* Grid & advanced layout with reduced sidebar width */
+    .advanced-layout{
+      display:grid;
+      grid-template-columns:280px 1fr;
+      gap:20px;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+    @media (max-width:1400px){.advanced-layout{grid-template-columns:260px 1fr}}
     @media (max-width:900px){.advanced-layout{grid-template-columns:1fr}}
 
     .card{background:var(--card);border-radius:var(--radius);padding:18px;border:1px solid var(--border);box-shadow:0 6px 26px rgba(2,6,23,0.04)}
@@ -46,10 +77,44 @@
     th{background:#f1f7fb;color:var(--muted);font-weight:600;font-size:12px}
     a.inline{color:var(--accent);text-decoration:none}
 
-    /* Sidebar */
-    .sidebar{position:relative}
-    .filter-group{background:#fbfeff;padding:14px;border-radius:10px;border:1px solid #e8f6ff}
-    .small{font-size:12px;color:var(--muted)}
+    /* Sidebar with fixed height and scrollable content */
+    .sidebar{
+      position:relative;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    
+    .sidebar .card {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      padding: 14px;
+    }
+    
+    .sidebar h2 {
+      margin: 0 0 12px 0;
+      flex-shrink: 0;
+      font-size: 16px;
+    }
+    
+    .sidebar-content {
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 6px;
+    }
+    
+    .filter-group{background:#fbfeff;padding:12px;border-radius:8px;border:1px solid #e8f6ff; margin-bottom: 12px;}
+    .small{font-size:11px;color:var(--muted); margin-bottom: 6px; display: block;}
+
+    /* Main content area with scroll */
+    #content {
+      height: 100%;
+      overflow-y: auto;
+      padding-right: 8px;
+    }
 
     /* Responsive content grids */
     .grid{display:grid;gap:var(--gap)}
@@ -62,7 +127,53 @@
     .ellipsis{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:600px;display:inline-block}
     .nowrap{white-space:nowrap}
 
-    footer{margin-top:20px;color:var(--muted);font-size:12px;text-align:center}
+    footer{margin-top:20px;color:var(--muted);font-size:12px;text-align:center; flex-shrink: 0;}
+    
+    /* UTM data styling */
+    .utm-data {
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      background: #f8f9fa;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid #e9ecef;
+    }
+    
+    .utm-empty {
+      color: #6c757d;
+      font-style: italic;
+    }
+    
+    .utm-partial {
+      color: #fd7e14;
+    }
+    
+    .utm-complete {
+      color: #198754;
+    }
+    
+    /* Scrollbar styling */
+    .sidebar-content::-webkit-scrollbar,
+    #content::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    .sidebar-content::-webkit-scrollbar-track,
+    #content::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 3px;
+    }
+    
+    .sidebar-content::-webkit-scrollbar-thumb,
+    #content::-webkit-scrollbar-thumb {
+      background: #c1c1c1;
+      border-radius: 3px;
+    }
+    
+    .sidebar-content::-webkit-scrollbar-thumb:hover,
+    #content::-webkit-scrollbar-thumb:hover {
+      background: #a8a8a8;
+    }
   </style>
 </head>
 <body>
@@ -71,7 +182,7 @@
       <div class="brand">
         <div class="logo">TD</div>
         <div>
-  <h1>Tracking Dashboard</h1>
+          <h1>Tracking Dashboard</h1>
           <div class="sub">Site analytics — {{ from }} to {{ to }}</div>
         </div>
       </div>
@@ -83,22 +194,22 @@
 
     <!-- top controls -->
     <form class="toolbar card" method="get" aria-label="filters">
-    <label>Site
-      <select name="site_key">
-        <option value="">All</option>
-        {% for sk in site_keys %}
-          <option value="{{ sk }}" {% if active_site_key == sk %}selected{% endif %}>{{ sk }}</option>
-        {% endfor %}
-      </select>
-    </label>
+      <label>Site
+        <select name="site_key">
+          <option value="">All</option>
+          {% for sk in site_keys %}
+            <option value="{{ sk }}" {% if active_site_key == sk %}selected{% endif %}>{{ sk }}</option>
+          {% endfor %}
+        </select>
+      </label>
 
-    <label>From
-      <input type="date" name="from" value="{{ from }}">
-    </label>
+      <label>From
+        <input type="date" name="from" value="{{ from }}">
+      </label>
 
-    <label>To
-      <input type="date" name="to" value="{{ to }}">
-    </label>
+      <label>To
+        <input type="date" name="to" value="{{ to }}">
+      </label>
 
       <label style="min-width:260px">Search
         <input type="text" name="q" placeholder="Search pages, referrers, leads..." value="{{ request.GET.q|default:'' }}">
@@ -106,7 +217,7 @@
 
       <button class="btn" type="submit">Apply</button>
       <button class="btn ghost" type="submit" name="export" value="csv">Export CSV</button>
-  </form>
+    </form>
 
     <!-- Advanced-only layout -->
     <main class="advanced-layout" id="mainLayout">
@@ -114,106 +225,108 @@
       <!-- Sidebar (always visible in advanced) -->
       <aside class="sidebar card">
         <h2>Filters & Settings</h2>
-        <div class="filter-group">
-          <div class="small">Traffic Source</div>
-          <select name="utm_source">
-            <option value="">All Sources</option>
-            <option value="google">Google</option>
-            <option value="facebook">Facebook</option>
-            <option value="linkedin">LinkedIn</option>
-            <option value="direct">Direct</option>
-            <option value="email">Email</option>
-            <option value="organic">Organic Search</option>
-          </select>
+        <div class="sidebar-content">
+          <div class="filter-group">
+            <div class="small">Traffic Source</div>
+            <select name="utm_source">
+              <option value="">All Sources</option>
+              <option value="google">Google</option>
+              <option value="facebook">Facebook</option>
+              <option value="linkedin">LinkedIn</option>
+              <option value="direct">Direct</option>
+              <option value="email">Email</option>
+              <option value="organic">Organic Search</option>
+            </select>
 
-          <div style="height:12px"></div>
-          <div class="small">Campaign Medium</div>
-          <select name="utm_medium">
-            <option value="">All Mediums</option>
-            <option value="cpc">Paid Search (CPC)</option>
-            <option value="social">Social Media</option>
-            <option value="email">Email Marketing</option>
-            <option value="referral">Referral</option>
-            <option value="organic">Organic</option>
-            <option value="display">Display Ads</option>
-          </select>
+            <div style="height:10px"></div>
+            <div class="small">Campaign Medium</div>
+            <select name="utm_medium">
+              <option value="">All Mediums</option>
+              <option value="cpc">Paid Search (CPC)</option>
+              <option value="social">Social Media</option>
+              <option value="email">Email Marketing</option>
+              <option value="referral">Referral</option>
+              <option value="organic">Organic</option>
+              <option value="display">Display Ads</option>
+            </select>
 
-          <div style="height:12px"></div>
-          <div class="small">Event Type</div>
-          <select name="event_type">
-            <option value="">All Events</option>
-            <option value="pageview">Page Views</option>
-            <option value="submit">Form Submissions</option>
-            <option value="click">Button Clicks</option>
-            <option value="scroll">Scroll Events</option>
-            <option value="download">Downloads</option>
-          </select>
+            <div style="height:10px"></div>
+            <div class="small">Event Type</div>
+            <select name="event_type">
+              <option value="">All Events</option>
+              <option value="pageview">Page Views</option>
+              <option value="submit">Form Submissions</option>
+              <option value="click">Button Clicks</option>
+              <option value="scroll">Scroll Events</option>
+              <option value="download">Downloads</option>
+            </select>
 
-          <div style="height:12px"></div>
-          <div class="small">Conversion Status</div>
-          <select name="conversion_status">
-            <option value="">All Visitors</option>
-            <option value="converted">Converted</option>
-            <option value="engaged">Highly Engaged</option>
-            <option value="bounce">Bounced</option>
-            <option value="returning">Returning Visitors</option>
-          </select>
+            <div style="height:10px"></div>
+            <div class="small">Conversion Status</div>
+            <select name="conversion_status">
+              <option value="">All Visitors</option>
+              <option value="converted">Converted</option>
+              <option value="engaged">Highly Engaged</option>
+              <option value="bounce">Bounced</option>
+              <option value="returning">Returning Visitors</option>
+            </select>
 
-          <div style="height:12px"></div>
-          <div class="small">Lead Quality</div>
-          <select name="lead_score">
-            <option value="">All Leads</option>
-            <option value="hot">Hot Leads (80-100)</option>
-            <option value="warm">Warm Leads (60-79)</option>
-            <option value="cold">Cold Leads (40-59)</option>
-            <option value="unqualified">Unqualified (<40)</option>
-          </select>
+            <div style="height:10px"></div>
+            <div class="small">Lead Quality</div>
+            <select name="lead_score">
+              <option value="">All Leads</option>
+              <option value="hot">Hot Leads (80-100)</option>
+              <option value="warm">Warm Leads (60-79)</option>
+              <option value="cold">Cold Leads (40-59)</option>
+              <option value="unqualified">Unqualified (<40)</option>
+            </select>
+
+            <div style="height:12px"></div>
+            <button class="btn">Apply Advanced Filters</button>
+          </div>
 
           <div style="height:14px"></div>
-          <button class="btn">Apply Advanced Filters</button>
-        </div>
+          <div class="small">Quick Analytics Views</div>
+          <ul style="padding-left:12px;margin-top:4px;font-size:11px">
+            <li><a href="?utm_medium=cpc">Paid Traffic Only</a></li>
+            <li><a href="?event_type=submit">Form Conversions</a></li>
+            <li><a href="?conversion_status=converted">Converted Visitors</a></li>
+            <li><a href="?lead_score=hot">Hot Leads</a></li>
+            <li><a href="?utm_source=organic">Organic Traffic</a></li>
+            <li><a href="?conversion_status=bounce">Bounce Analysis</a></li>
+          </ul>
 
-        <div style="height:18px"></div>
-        <div class="small">Quick Analytics Views</div>
-        <ul style="padding-left:16px;margin-top:6px">
-          <li><a href="?utm_medium=cpc">Paid Traffic Only</a></li>
-          <li><a href="?event_type=submit">Form Conversions</a></li>
-          <li><a href="?conversion_status=converted">Converted Visitors</a></li>
-          <li><a href="?lead_score=hot">Hot Leads</a></li>
-          <li><a href="?utm_source=organic">Organic Traffic</a></li>
-          <li><a href="?conversion_status=bounce">Bounce Analysis</a></li>
-        </ul>
-
-        <div style="height:18px"></div>
-        <div class="small">Export Options</div>
-        <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
-          <button class="btn ghost" onclick="exportData('leads')">Export Leads CSV</button>
-          <button class="btn ghost" onclick="exportData('events')">Export Events CSV</button>
-          <button class="btn ghost" onclick="exportData('analytics')">Export Analytics PDF</button>
+          <div style="height:14px"></div>
+          <div class="small">Export Options</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">
+            <button class="btn ghost" onclick="exportData('leads')" style="font-size:11px;padding:6px 10px">Export Leads CSV</button>
+            <button class="btn ghost" onclick="exportData('events')" style="font-size:11px;padding:6px 10px">Export Events CSV</button>
+            <button class="btn ghost" onclick="exportData('analytics')" style="font-size:11px;padding:6px 10px">Export Analytics PDF</button>
+          </div>
         </div>
       </aside>
 
       <!-- Main content area -->
       <section id="content">
         <section class="grid grid-4">
-    <div class="card kpi"><div>Total Events</div><div class="val">{{ total_events }}</div></div>
-    <div class="card kpi"><div>Page Loads</div><div class="val">{{ page_loads }}</div></div>
-    <div class="card kpi"><div>Form Submissions</div><div class="val">{{ form_submits }}</div></div>
-    <div class="card kpi"><div>Unique Visitors</div><div class="val">{{ unique_visitors }}</div></div>
+          <div class="card kpi"><div>Total Events</div><div class="val">{{ total_events }}</div></div>
+          <div class="card kpi"><div>Page Loads</div><div class="val">{{ page_loads }}</div></div>
+          <div class="card kpi"><div>Form Submissions</div><div class="val">{{ form_submits }}</div></div>
+          <div class="card kpi"><div>Unique Visitors</div><div class="val">{{ unique_visitors }}</div></div>
         </section>
 
         <section class="grid grid-2 section">
-    <div class="card">
+          <div class="card">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
               <h2 style="margin:0">Events Over Time</h2>
               <div class="small">Daily totals</div>
             </div>
-      <canvas id="eventsChart" height="120"></canvas>
-      <div class="muted">Daily totals from {{ from }} to {{ to }}</div>
-    </div>
+            <canvas id="eventsChart" height="120"></canvas>
+            <div class="muted">Daily totals from {{ from }} to {{ to }}</div>
+          </div>
 
-    <div class="card">
-      <h2>New Leads</h2>
+          <div class="card">
+            <h2>New Leads</h2>
             <div class="kpi"><div class="val">{{ new_leads }}</div><div class="muted">Leads created within selected range</div></div>
 
             <div style="height:14px"></div>
@@ -221,215 +334,222 @@
             <div style="display:flex;gap:8px;flex-wrap:wrap">
               <button class="btn">Export Leads</button>
               <button class="btn ghost">Open CRM</button>
-    </div>
-  </div>
+            </div>
+          </div>
         </section>
 
         <!-- Top lists -->
         <section class="grid grid-2 section">
-    <div class="card">
-      <h2>Top Pages</h2>
-      <table>
-        <thead><tr><th>URL</th><th class="nowrap">Events</th></tr></thead>
-        <tbody>
-          {% for row in top_pages %}
-            <tr>
+          <div class="card">
+            <h2>Top Pages</h2>
+            <table>
+              <thead><tr><th>URL</th><th class="nowrap">Events</th></tr></thead>
+              <tbody>
+                {% for row in top_pages %}
+                  <tr>
                     <td class="ellipsis"><a class="inline" href="{{ row.page_url }}" target="_blank" rel="noopener">{{ row.page_url }}</a></td>
-              <td class="nowrap">{{ row.events }}</td>
-            </tr>
-          {% empty %}
-            <tr><td colspan="2" class="muted">No data</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+                    <td class="nowrap">{{ row.events }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="2" class="muted">No data</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
 
-    <div class="card">
-      <h2>Top Referrers</h2>
-      <table>
-        <thead><tr><th>Referrer</th><th class="nowrap">Events</th></tr></thead>
-        <tbody>
-          {% for row in top_referrers %}
-            <tr>
-              <td class="ellipsis">{{ row.ref }}</td>
-              <td class="nowrap">{{ row.events }}</td>
-            </tr>
-          {% empty %}
-            <tr><td colspan="2" class="muted">No data</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+          <div class="card">
+            <h2>Top Referrers</h2>
+            <table>
+              <thead><tr><th>Referrer</th><th class="nowrap">Events</th></tr></thead>
+              <tbody>
+                {% for row in top_referrers %}
+                  <tr>
+                    <td class="ellipsis">{{ row.ref }}</td>
+                    <td class="nowrap">{{ row.events }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="2" class="muted">No data</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
         </section>
 
         <!-- marketing -->
         <section class="grid grid-3 section">
-    <div class="card">
-      <h2>Top Sources</h2>
-      <table>
-        <thead><tr><th>Source</th><th>Events</th></tr></thead>
-        <tbody>
-          {% for row in top_sources %}
-            <tr><td>{{ row.source|default:"—" }}</td><td>{{ row.events }}</td></tr>
-          {% empty %}<tr><td colspan="2" class="muted">No data</td></tr>{% endfor %}
-        </tbody>
-      </table>
-    </div>
+          <div class="card">
+            <h2>Top Sources</h2>
+            <table>
+              <thead><tr><th>Source</th><th>Events</th></tr></thead>
+              <tbody>
+                {% for row in top_sources %}
+                  <tr><td>{{ row.source|default:"—" }}</td><td>{{ row.events }}</td></tr>
+                {% empty %}<tr><td colspan="2" class="muted">No data</td></tr>{% endfor %}
+              </tbody>
+            </table>
+          </div>
 
-    <div class="card">
-      <h2>Top Mediums</h2>
-      <table>
-        <thead><tr><th>Medium</th><th>Events</th></tr></thead>
-        <tbody>
-          {% for row in top_mediums %}
-            <tr><td>{{ row.medium|default:"—" }}</td><td>{{ row.events }}</td></tr>
-          {% empty %}<tr><td colspan="2" class="muted">No data</td></tr>{% endfor %}
-        </tbody>
-      </table>
-    </div>
+          <div class="card">
+            <h2>Top Mediums</h2>
+            <table>
+              <thead><tr><th>Medium</th><th>Events</th></tr></thead>
+              <tbody>
+                {% for row in top_mediums %}
+                  <tr><td>{{ row.medium|default:"—" }}</td><td>{{ row.events }}</td></tr>
+                {% empty %}<tr><td colspan="2" class="muted">No data</td></tr>{% endfor %}
+              </tbody>
+            </table>
+          </div>
 
-    <div class="card">
-      <h2>Top Campaigns</h2>
-      <table>
-        <thead><tr><th>Source</th><th>Campaign</th><th>Events</th></tr></thead>
-        <tbody>
-          {% for row in top_campaigns %}
-            <tr>
-              <td>{{ row.source|default:"—" }}</td>
-              <td>{{ row.campaign|default:"—" }}</td>
-              <td>{{ row.events }}</td>
-            </tr>
-          {% empty %}
-            <tr><td colspan="3" class="muted">No data</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+          <div class="card">
+            <h2>Top Campaigns</h2>
+            <table>
+              <thead><tr><th>Source</th><th>Campaign</th><th>Events</th></tr></thead>
+              <tbody>
+                {% for row in top_campaigns %}
+                  <tr>
+                    <td>{{ row.source|default:"—" }}</td>
+                    <td>{{ row.campaign|default:"—" }}</td>
+                    <td>{{ row.events }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="3" class="muted">No data</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
         </section>
 
         <!-- recent searches & events -->
-  <div class="section card">
-    <h2>Recent Searches</h2>
-    <table>
-      <thead><tr><th>When</th><th>Field</th><th>Value</th><th>Page</th></tr></thead>
-      <tbody>
-        {% for r in recent_searches %}
-          <tr>
-            <td class="nowrap">{{ r.created_at }}</td>
-            <td>{{ r.event_data__field__label|default:r.event_data__field__name }} ({{ r.event_data__field__type }})</td>
-            <td>
-              {% if r.event_data__field__masked %}
-                [masked]
-              {% else %}
-                {{ r.event_data__field__value|default:"—" }}
-              {% endif %}
-            </td>
+        <div class="section card">
+          <h2>Recent Searches</h2>
+          <table>
+            <thead><tr><th>When</th><th>Field</th><th>Value</th><th>Page</th></tr></thead>
+            <tbody>
+              {% for r in recent_searches %}
+                <tr>
+                  <td class="nowrap">{{ r.created_at }}</td>
+                  <td>{{ r.event_data__field__label|default:r.event_data__field__name }} ({{ r.event_data__field__type }})</td>
+                  <td>
+                    {% if r.event_data__field__masked %}
+                      [masked]
+                    {% else %}
+                      {{ r.event_data__field__value|default:"—" }}
+                    {% endif %}
+                  </td>
                   <td class="ellipsis"><a class="inline" href="{{ r.event_data__meta_url }}" target="_blank" rel="noopener">{{ r.event_data__meta_url }}</a></td>
-          </tr>
-        {% empty %}
-          <tr><td colspan="4" class="muted">No recent searches</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+                </tr>
+              {% empty %}
+                <tr><td colspan="4" class="muted">No recent searches</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
 
-  <div class="section card">
-    <h2>Recent Events (last 10)</h2>
+        <div class="section card">
+          <h2>Recent Events (last 10)</h2>
           <div style="overflow:auto">
-    <table>
-      <thead>
-        <tr>
-          <th class="nowrap">When</th>
-          <th>Type</th>
-          <th>Event</th>
-          <th>Page</th>
-          <th>Title</th>
-          <th>Referrer</th>
-          <th>UTM</th>
-          <th>Lang/TZ</th>
-          <th>Viewport</th>
-          <th>Screen</th>
-          <th>Input</th>
-          <th>Identity</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for e in recent_events %}
-          <tr>
-            <td class="nowrap">{{ e.created_at }}</td>
-            <td>{{ e.event_type }}</td>
-            <td>{{ e.evname|default:"—" }}</td>
-                  <td class="ellipsis"><a class="inline" href="{{ e.page_url }}" target="_blank" rel="noopener">{{ e.page_url }}</a></td>
-            <td class="ellipsis">{{ e.page_title_an|default:"—" }}</td>
-            <td class="ellipsis">{{ e.ref|default:"—" }}</td>
-            <td class="ellipsis">
-              {% with s=e.utm_source_an m=e.utm_medium_an c=e.utm_campaign_an t=e.utm_term_an u=e.utm_content_an %}
-                {{ s|default:"—" }}/{{ m|default:"—" }}/{{ c|default:"—" }}{% if t or u %} ({{ t|default:"—" }}, {{ u|default:"—" }}){% endif %}
-              {% endwith %}
-            </td>
-            <td>{{ e.lang|default:"—" }}/{{ e.tz|default:"—" }}</td>
-            <td>{{ e.vw|default:"—" }}×{{ e.vh|default:"—" }}</td>
-            <td>{{ e.sw|default:"—" }}×{{ e.sh|default:"—" }} @{{ e.dpr|default:"—" }}</td>
-            <td>
-              {% if e.fld_label or e.fld_value %}
-                {{ e.fld_label|default:"(field)" }}:
-                {% if e.fld_masked %}[masked]{% else %}{{ e.fld_value|default:"—" }}{% endif %}
-              {% else %}—{% endif %}
-            </td>
-            <td>
-              {% if e.id_user_email or e.id_user_id or e.id_user_name %}
-                {{ e.id_user_name|default:"" }} {{ e.id_user_email|default:"" }} {{ e.id_user_id|default:"" }}
-              {% else %}—{% endif %}
-            </td>
-          </tr>
-        {% empty %}
-          <tr><td colspan="12" class="muted">No events yet</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+            <table>
+              <thead>
+                <tr>
+                  <th class="nowrap">When</th>
+                  <th>Type</th>
+                  <th>Event</th>
+                  <th>Page</th>
+                  <th>Title</th>
+                  <th>Referrer</th>
+                  <th>UTM</th>
+                  <th>Lang/TZ</th>
+                  <th>Viewport</th>
+                  <th>Screen</th>
+                  <th>Input</th>
+                  <th>Identity</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for e in recent_events %}
+                  <tr>
+                    <td class="nowrap">{{ e.created_at }}</td>
+                    <td>{{ e.event_type }}</td>
+                    <td>{{ e.evname|default:"—" }}</td>
+                    <td class="ellipsis"><a class="inline" href="{{ e.page_url }}" target="_blank" rel="noopener">{{ e.page_url }}</a></td>
+                    <td class="ellipsis">{{ e.page_title_an|default:"—" }}</td>
+                    <td class="ellipsis">{{ e.ref|default:"—" }}</td>
+                    <td class="ellipsis">
+                      {% with s=e.utm_source_an m=e.utm_medium_an c=e.utm_campaign_an t=e.utm_term_an u=e.utm_content_an %}
+                        <span class="utm-data 
+                          {% if not s and not m and not c %}utm-empty{% elif s and m and c %}utm-complete{% else %}utm-partial{% endif %}">
+                          {% if s or m or c %}
+                            {{ s|default:"—" }}/{{ m|default:"—" }}/{{ c|default:"—" }}{% if t or u %} ({{ t|default:"—" }}, {{ u|default:"—" }}){% endif %}
+                          {% else %}
+                            No UTM data
+                          {% endif %}
+                        </span>
+                      {% endwith %}
+                    </td>
+                    <td>{{ e.lang|default:"—" }}/{{ e.tz|default:"—" }}</td>
+                    <td>{{ e.vw|default:"—" }}×{{ e.vh|default:"—" }}</td>
+                    <td>{{ e.sw|default:"—" }}×{{ e.sh|default:"—" }} @{{ e.dpr|default:"—" }}</td>
+                    <td>
+                      {% if e.fld_label or e.fld_value %}
+                        {{ e.fld_label|default:"(field)" }}:
+                        {% if e.fld_masked %}[masked]{% else %}{{ e.fld_value|default:"—" }}{% endif %}
+                      {% else %}—{% endif %}
+                    </td>
+                    <td>
+                      {% if e.id_user_email or e.id_user_id or e.id_user_name %}
+                        {{ e.id_user_name|default:"" }} {{ e.id_user_email|default:"" }} {{ e.id_user_id|default:"" }}
+                      {% else %}—{% endif %}
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="12" class="muted">No events yet</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
           </div>
-  </div>
+        </div>
 
         <!-- recent leads & users -->
         <div class="section grid grid-2">
           <div class="card">
-    <h2>Recent Leads</h2>
-    <table>
+            <h2>Recent Leads</h2>
+            <table>
               <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Address</th><th>Created</th></tr></thead>
-      <tbody>
-        {% for l in recent_leads %}
-          <tr>
-            <td>{{ l.first_name }} {{ l.last_name }}</td>
-            <td>{{ l.email|default:"—" }}</td>
-            <td>{{ l.phone|default:"—" }}</td>
-            <td>{{ l.property_address|default:"—" }}</td>
-            <td>{{ l.created_at }}</td>
-          </tr>
-        {% empty %}
-          <tr><td colspan="5" class="muted">No leads yet</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+              <tbody>
+                {% for l in recent_leads %}
+                  <tr>
+                    <td>{{ l.first_name }} {{ l.last_name }}</td>
+                    <td>{{ l.email|default:"—" }}</td>
+                    <td>{{ l.phone|default:"—" }}</td>
+                    <td>{{ l.property_address|default:"—" }}</td>
+                    <td>{{ l.created_at }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="5" class="muted">No leads yet</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
 
           <div class="card">
-    <h2>Recent Users</h2>
-    <table>
+            <h2>Recent Users</h2>
+            <table>
               <thead><tr><th>User ID</th><th>Email</th><th>Name</th><th>First Seen</th><th>Last Seen</th></tr></thead>
-      <tbody>
-        {% for u in recent_users %}
-          <tr>
-            <td>{{ u.user_external_id|default:"—" }}</td>
-            <td>{{ u.user_email|default:"—" }}</td>
-            <td>{{ u.user_name|default:"—" }}</td>
-            <td>{{ u.first_seen }}</td>
-            <td>{{ u.last_seen }}</td>
-          </tr>
-        {% empty %}
-          <tr><td colspan="5" class="muted">No identified users yet</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+              <tbody>
+                {% for u in recent_users %}
+                  <tr>
+                    <td>{{ u.user_external_id|default:"—" }}</td>
+                    <td>{{ u.user_email|default:"—" }}</td>
+                    <td>{{ u.user_name|default:"—" }}</td>
+                    <td>{{ u.first_seen }}</td>
+                    <td>{{ u.last_seen }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="5" class="muted">No identified users yet</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -449,7 +569,7 @@
 
     const ctx = document.getElementById('eventsChart')?.getContext('2d');
     if(ctx){
-    new Chart(ctx, {
+      new Chart(ctx, {
         type:'line',
         data:{labels, datasets:[{label:'Events', data, tension:0.3, borderWidth:2, pointRadius:2, fill:false}]},
         options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}
